@@ -1,2 +1,2 @@
-# module-mattgpt
-Playing with langchain and Q&amp;A against apps. 
+# module-geoint
+Demo module for GEOINT conference
