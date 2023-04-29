@@ -1,0 +1,9 @@
+[theme]
+base="light"
+primaryColor="#356dff"
+
+[ui]
+hideSidebarNav=false
+
+[runner]
+fastReruns=true
