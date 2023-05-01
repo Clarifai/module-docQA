@@ -147,7 +147,10 @@ class Clarifai(VectorStore):
                 pagination=service_pb2.Pagination(page=1, per_page=4),
             )
         )
-
+        st.json(
+            json_format.MessageToJson(post_annotations_searches_response, preserving_proto_field_name=True)
+        )
+        # print(post_annotations_searches_response)
         if post_annotations_searches_response.status.code != status_code_pb2.SUCCESS:
             # st.json(
             #     json_format.MessageToJson(
@@ -156,32 +159,31 @@ class Clarifai(VectorStore):
                 "Post searches failed, status: " + post_annotations_searches_response.status.description
             )
 
-        print("Search result:")
         hits = post_annotations_searches_response.hits
-        st.write("Found %d documents from API" % len(hits))
 
         docs = []
         for hit in hits:
             # Only return results with a score above 0.85
-            if hit.score < 0.85:
+            if hit.score < 0.80:
                 break
             metadata = json_format.MessageToDict(hit.input.data.metadata)
             t = requests.get(hit.input.data.text.url).text
             # TODO(zeiler): generalize this to return the whole metadata.
             if "source" in metadata:
                 source = str(metadata.get("source"))
-                text_start_index = str(metadata.get("text_start_index"))
+                page_number = str(metadata.get("page_number"))
 
             else:
                 source = hit.input.id
-                text_start_index = "NA"
+                page_number = "NA"
             print(
                 "\tScore %.2f for annotation: %s off input: %s, source: %s, t: %s"
                 % (hit.score, hit.annotation.id, hit.input.id, source, t[:125])
             )
             docs.append(
                 Document(
-                    page_content=t, metadata={"source": f"{source} - {text_start_index}", "score": hit.score}
+                    page_content=t,
+                    metadata={"source": f"{source}", "page": {page_number}, "score": hit.score},
                 )
             )
 
