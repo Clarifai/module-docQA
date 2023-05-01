@@ -4,77 +4,72 @@ import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 
-from pages.upload_utils import post_texts
+from utils.upload_utils import post_texts, word_counter, split_into_chunks
 
-st.set_page_config(page_title="LangChain Demo", page_icon=":robot:")
+st.set_page_config(page_title="Upload App", page_icon=":robot:")
 
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
 st.title("Upload PDF as text chunks")
 st.markdown(
-    "This will chunk up the PDF into text pages and upload them to our platform. This also fills in the data.metadata.source = to the page number."
+    "This will chunk up the PDF into text pages and upload them to our platform. This also fills in the `data.metadata.source = name of document`\
+        and `data.metadata.page_number = page number of document`."
 )
-
-
-def word_counter(text):
-    return len(text.split())
-
-
-def split_into_chunks(s, text_chunk_size):
-    words = s.split()
-    chunks = []
-    chunk = ""
-    for i, word in enumerate(words):
-        if i % text_chunk_size == 0 and i > 0:
-            chunks.append(chunk.strip())
-            chunk = ""
-        chunk += word + " "
-    if chunk:
-        chunks.append(chunk.strip())
-    return chunks
 
 
 text_chunk_size = st.number_input("Text chunk size", min_value=100, max_value=3000, value=300, step=100)
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 
 if uploaded_file:
-
     reader = PyPDF2.PdfReader(uploaded_file)
+    try:
+        document_title = reader.metadata.title.split(".")[0]
+    except AttributeError:
+        document_title = uploaded_file.name.split(".")[0]
 
-    texts_list = []
-    metadata_list = []
     text_chunks = []
+    page_number_list = []
+    prev_page_text = ""
     for page_idx, page in enumerate(reader.pages):
-        texts_list.append(page.extract_text())
-        # metadata_list.append(
-        #     {
-        #         "page_number": page_idx,
-        #     }
-        # )
+        print("default page_idx: ", page_idx)
 
-    full_text = " ".join(texts_list)
-    text_chunks = split_into_chunks(full_text, text_chunk_size)
-    # text_chunks = [full_text[i : i + text_chunk_size] for i in range(0, len(full_text), text_chunk_size)]
-    print("length of text chunks", len(text_chunks))
+        # if page_idx == 6:
+        #     break
 
-    # # Update metadata list
-    # metadata_list = [metadata.update({
-    #         "source": "Holistic - Paper",
-    #         "text_length": len(text_chunks[idx]),
-    #         "text_start_index": len(" ".join(text_chunks[:idx]))}) for metadata in metadata_list)]
+        current_page_text = page.extract_text()
+        page_text = prev_page_text + current_page_text
 
+        # Check if text is smaller the text_chunk_size, if so, add it to the previous page text holder
+        if word_counter(page_text) < text_chunk_size:
+            prev_page_text += current_page_text
+            continue
+        else:
+            prev_page_text = ""
+
+        print(page_text)
+        page_text_chunks = split_into_chunks(page_text, text_chunk_size)
+        text_chunks.extend(page_text_chunks)
+        page_number_list.extend([str(page_idx)] * len(page_text_chunks))
+        print("length of text chunks", len(text_chunks))
+
+    # # Save list to a txt file for debugging
+    # with open(f"{uploaded_file_name}.txt", "w") as f:
+    #     for item in text_chunks:
+    #         f.write("%s\n" % item)
+
+    print("len(text_chunks): ", len(text_chunks))
+    print("len(page_number_list): ", len(page_number_list))
+    assert len(text_chunks) == len(page_number_list), "Text chunks and page numbers should be the same length"
     metadata_list = [
         {
-            "source": "Tom Clancy - The Hunt for Red October",
+            "source": f"{document_title}",
             "text_length": word_counter(text_chunks[idx]),
-            "text_start_index": word_counter(" ".join(text_chunks[:idx])),
+            "page_number": page_number_list[idx],
         }
         for idx in range(len(text_chunks))
     ]
-
-    assert len(text_chunks) * text_chunk_size >= word_counter(
-        full_text
-    ), "Text chunks should be able to cover the full text"
+    print(text_chunks[-1])
+    print(metadata_list[-1])
 
     post_texts(st, stub, userDataObject, text_chunks, metadata_list)
