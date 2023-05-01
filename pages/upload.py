@@ -13,12 +13,12 @@ stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
 st.title("Upload PDF as text chunks")
 st.markdown(
-    "This will chunk up the PDF into text pages and upload them to our platform. This also fills in the `data.metadata.source = name of document`\
-        and `data.metadata.page_number = page number of document`."
+    "This will chunk up the PDF into text pages and upload them to our platform. This also fills in the `data.metadata.source = {name of document}`\
+        and `data.metadata.page_number = {page number of document}`."
 )
 
 
-text_chunk_size = st.number_input("Text chunk size", min_value=100, max_value=3000, value=300, step=100)
+text_chunk_size = st.number_input("Text chunk size", min_value=100, max_value=3000, value=500, step=100)
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 
 if uploaded_file:
@@ -41,7 +41,7 @@ if uploaded_file:
         page_text = prev_page_text + current_page_text
 
         # Check if text is smaller the text_chunk_size, if so, add it to the previous page text holder
-        if word_counter(page_text) < text_chunk_size:
+        if (word_counter(page_text) < text_chunk_size) and (page_idx != len(reader.pages) - 1):
             prev_page_text += current_page_text
             continue
         else:

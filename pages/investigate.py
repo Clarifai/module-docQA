@@ -52,6 +52,48 @@ def load_qa_with_sources():
     return chain
 
 
+def load_custom_qa_with_sources():
+    refine_template = (
+        "The original question is as follows: {question}\n"
+        "We have provided an existing answer, including sources: {existing_answer}\n"
+        "We have the opportunity to update the list of named entities"
+        "(only if needed) with some more context below.\n"
+        "Make sure any entities extracted are part of the context below. If not, do not add them to the list."
+        "If you see any entities that are not extracted, add them."
+        "Use only the context below.\n"
+        "------------\n"
+        "{context_str}\n"
+        "------------\n"
+        "Given the new context, refine the original answer to better "
+        "create a more accurate list of named entities."
+        "If you do update it, please update the sources as well. "
+        "If the context isn't useful, return the original answer."
+    )
+    refine_prompt = PromptTemplate(
+        input_variables=["question", "existing_answer", "context_str"],
+        template=refine_template,
+    )
+
+    question_template = (
+        "Context information is below. \n"
+        "---------------------\n"
+        "{context_str}"
+        "\n---------------------\n"
+        "Given the context information and not prior knowledge, "
+        "answer the question: {question}\n"
+    )
+    question_prompt = PromptTemplate(input_variables=["context_str", "question"], template=question_template)
+
+    chain = load_qa_with_sources_chain(
+        OpenAI(temperature=0),
+        chain_type="refine",
+        return_intermediate_steps=True,
+        question_prompt=question_prompt,
+        refine_prompt=refine_prompt,
+    )
+    return chain
+
+
 def load_qa_agent_with_sources(docstore):
     vectorstore_info = VectorStoreInfo(
         name="database",
@@ -205,6 +247,7 @@ with clarifai_qa:
     )
 
     chain = load_qa_with_sources()
+    custom_chain = load_custom_qa_with_sources()
     text_splitter = CharacterTextSplitter()
 
     if "generatedcl" not in st.session_state:
@@ -247,7 +290,7 @@ with clarifai_qa:
 
             ner_prompt = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
             LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
-
+            
             The format is:
             - PER: {list of people}
             - ORG: {list of organizations}
@@ -286,7 +329,8 @@ with clarifai_qa:
             - Apollo program, a series of manned spaceflight missions undertaken by NASA
             Obamacare, a healthcare reform law in the United States.
             
-            Sources (list of sources of the text)
+            Sources (list of sources of the text).
+            Example:
             - Tom Clancy
             - The New York Times
             - Harry Potter and the Sorcerer's Stone
@@ -295,8 +339,12 @@ with clarifai_qa:
             Output:
             """
 
-            ner_output = chain({"input_documents": docs, "question": ner_prompt}, return_only_outputs=True)
+            # ner_output = chain({"input_documents": docs, "question": ner_prompt}, return_only_outputs=True)
+            ner_output = custom_chain(
+                {"input_documents": docs, "question": ner_prompt}, return_only_outputs=True
+            )
             output_1 = ner_output["output_text"]
+            st.markdown(output_1)
             print("output_1: ", output_1)
 
             # connection_prompt = """Using the named entity recognition (NER) annotations for the set of texts, identify any connections or commonalities between the texts. Consider how the entities mentioned in each text relate to each other, and whether any patterns emerge across the set. In particular, look for similarities or differences in the types of entities mentioned, and consider how these may be relevant to the themes or topics covered in the texts.
