@@ -144,13 +144,15 @@ class Clarifai(VectorStore):
                         )
                     )
                 ],
-                pagination=service_pb2.Pagination(page=1, per_page=8),
+                pagination=service_pb2.Pagination(page=1, per_page=4),
             )
         )
-        st.json(
-            json_format.MessageToJson(post_annotations_searches_response, preserving_proto_field_name=True)
-        )
+
+        # st.json(
+        #     json_format.MessageToJson(post_annotations_searches_response, preserving_proto_field_name=True)
+        # )
         # print(post_annotations_searches_response)
+
         if post_annotations_searches_response.status.code != status_code_pb2.SUCCESS:
             # st.json(
             #     json_format.MessageToJson(
@@ -163,12 +165,16 @@ class Clarifai(VectorStore):
 
         docs = []
         for hit in hits:
-            # Only return results with a score above 0.85
+            # Only return results with a score above 0.80
             if hit.score < 0.80:
                 break
             metadata = json_format.MessageToDict(hit.input.data.metadata)
-            t = requests.get(hit.input.data.text.url).text
-            # TODO(zeiler): generalize this to return the whole metadata.
+            request = requests.get(hit.input.data.text.url)
+
+            # override encoding by real educated guess as provided by chardet
+            request.encoding = request.apparent_encoding
+            requested_text = request.text
+
             if "source" in metadata:
                 source = str(metadata.get("source"))
                 page_number = str(metadata.get("page_number"))
@@ -177,12 +183,12 @@ class Clarifai(VectorStore):
                 source = hit.input.id
                 page_number = "NA"
             print(
-                "\tScore %.2f for annotation: %s off input: %s, source: %s, t: %s"
-                % (hit.score, hit.annotation.id, hit.input.id, source, t[:125])
+                "\tScore %.2f for annotation: %s off input: %s, source: %s, text: %s"
+                % (hit.score, hit.annotation.id, hit.input.id, source, requested_text[:125])
             )
             docs.append(
                 Document(
-                    page_content=t,
+                    page_content=requested_text,
                     metadata={"source": f"{source}", "page": {page_number}, "score": hit.score},
                 )
             )
