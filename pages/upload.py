@@ -30,6 +30,7 @@ if uploaded_file:
 
     text_chunks = []
     page_number_list = []
+    page_chunk_number_list = []
     prev_page_text = ""
     for page_idx, page in enumerate(reader.pages):
         print("default page_idx: ", page_idx)
@@ -51,6 +52,7 @@ if uploaded_file:
         page_text_chunks = split_into_chunks(page_text, text_chunk_size)
         text_chunks.extend(page_text_chunks)
         page_number_list.extend([str(page_idx)] * len(page_text_chunks))
+        page_chunk_number_list.extend([str(idx) for idx in range(len(page_text_chunks))])
         print("length of text chunks", len(text_chunks))
 
     # # Save list to a txt file for debugging
@@ -66,6 +68,7 @@ if uploaded_file:
             "source": f"{document_title}",
             "text_length": word_counter(text_chunks[idx]),
             "page_number": page_number_list[idx],
+            "page_chunk_number": page_chunk_number_list[idx],
         }
         for idx in range(len(text_chunks))
     ]
