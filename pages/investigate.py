@@ -20,11 +20,13 @@ from langchain.vectorstores import FAISS
 from streamlit_chat import message
 import pandas as pd
 from vector.vectorstore import Clarifai
+from utils.prompts import NER_PROMPT
+import json
 
 # FIXME(zeiler): don't hardcode.
 os.environ["OPENAI_API_KEY"] = "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"
 
-st.set_page_config(page_title="LangChain Demo", page_icon=":robot:")
+st.set_page_config(page_title="GEOINT NER Investigation", page_icon=":robot:", layout="wide")
 
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
@@ -56,17 +58,19 @@ def load_custom_qa_with_sources():
     refine_template = (
         "The original question is as follows: {question}\n"
         "We have provided an existing answer, including sources: {existing_answer}\n"
-        "We have the opportunity to update the list of named entities"
+        "Do not remove any entities or sources from the existing answer."
+        "We have the opportunity to update the list of named entities and sources"
         "(only if needed) with some more context below.\n"
         "Make sure any entities extracted are part of the context below. If not, do not add them to the list."
         "If you see any entities that are not extracted, add them."
-        "Use only the context below.\n"
+        "Use only the context below delimited by triple backticks.\n"
         "------------\n"
-        "{context_str}\n"
+        "```{context_str}```\n"
         "------------\n"
-        "Given the new context, refine the original answer to better "
-        "create a more accurate list of named entities."
-        "If you do update it, please update the sources as well. "
+        "Given the new context, update the original answer to extract additional entities and sources."
+        "Create a more accurate list of named entities and sources."
+        "If you do update it, please update the sources as well while keeping the existing sources."
+        "The new source can be extracted from the end of the context after 'Source: '"
         "If the context isn't useful, return the original answer."
     )
     refine_prompt = PromptTemplate(
@@ -75,9 +79,9 @@ def load_custom_qa_with_sources():
     )
 
     question_template = (
-        "Context information is below. \n"
+        "Context information is below delimited by triple backticks. \n"
         "---------------------\n"
-        "{context_str}"
+        "```{context_str}```"
         "\n---------------------\n"
         "Given the context information and not prior knowledge, "
         "answer the question: {question}\n"
@@ -85,7 +89,9 @@ def load_custom_qa_with_sources():
     question_prompt = PromptTemplate(input_variables=["context_str", "question"], template=question_template)
 
     chain = load_qa_with_sources_chain(
-        OpenAI(temperature=0),
+        OpenAI(
+            temperature=0, model_name="gpt-3.5-turbo", max_tokens=2500
+        ),  # model_name="gpt-3.5-turbo",  max_tokens=512
         chain_type="refine",
         return_intermediate_steps=True,
         question_prompt=question_prompt,
@@ -250,11 +256,11 @@ with clarifai_qa:
     custom_chain = load_custom_qa_with_sources()
     text_splitter = CharacterTextSplitter()
 
-    if "generatedcl" not in st.session_state:
-        st.session_state["generatedcl"] = []
+    # if "generatedcl" not in st.session_state:
+    #     st.session_state["generatedcl"] = []
 
-    if "pastcl" not in st.session_state:
-        st.session_state["pastcl"] = []
+    # if "pastcl" not in st.session_state:
+    #     st.session_state["pastcl"] = []
 
     def get_text():
         input_text = st.text_input(
@@ -266,8 +272,9 @@ with clarifai_qa:
 
     user_input = get_text()
 
-    if user_input:
-        # Use Clarifai text that is embedded as the docsearch
+    # Function that gets relevant doc using Clariifai's vector search
+    @st.cache_resource
+    def get_clarifai_docsearch(user_input):
         auth = ClarifaiAuthHelper.from_streamlit(st)
         stub = create_stub(auth)
         userDataObject = auth.get_user_app_id_proto()
@@ -276,76 +283,82 @@ with clarifai_qa:
 
         print("Searching for: %s" % user_input)
         docs = docsearch.similarity_search(user_input)
+        return docs
 
-        with st.expander("Docs answering from:"):
+    if user_input:
+        docs = get_clarifai_docsearch(user_input)
+
+        with st.expander(f"{len(docs)} Docs answering from:"):
             for idx, doc in enumerate(docs):
-                st.subheader(f"Search Result: {idx+1}")
+                st.markdown(f"### Search Result: {idx+1}")
                 st.markdown(f"**{doc.page_content}**")
                 st.write(doc.metadata)
                 st.text("")
 
         if docs != []:
-            st.write(f"Found {len(docs)} documents")
             st.write("Now going to use the LLM to understand and summarize the information...")
 
-            ner_prompt = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
-            LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
-            
-            The format is:
-            - PER: {list of people}
-            - ORG: {list of organizations}
-            - LOC: {list of locations}
-            - TIME: {list of times}
-            - MISC: {list of formal agreements and projects}
-            - Sources: {list of sources}
-
-            Here are the definitions with a few examples:
-            PER (person): Refers to individuals, including their names and titles.
-            Example:
-            - Barack Obama, former President of the United States
-            - J.K. Rowling, author of the Harry Potter series
-            - Elon Musk, CEO of SpaceX and Tesla
-
-            ORG (organization): Refers to institutions, companies, government bodies, and other groups.
-            Example:
-            - Microsoft Corporation, a multinational technology company
-            - United Nations, an intergovernmental organization
-            - International Red Cross, a humanitarian organization
-
-            LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
-            Example:
-            - London, capital of England
-            - Eiffel Tower, a landmark in Paris, France
-            - Great Barrier Reef, a coral reef system in Australia
-
-            TIME (date or year): Refers to dates, years, and other time-related expressions.
-            Example:
-            - January 1st, 2023, the start of a new year
-            - 1995, the year Toy Story was released
-
-            MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
-            Example:
-            - Kyoto Protocol, an international agreement to address climate change
-            - Apollo program, a series of manned spaceflight missions undertaken by NASA
-            Obamacare, a healthcare reform law in the United States.
-            
-            Sources (list of sources of the text).
-            Example:
-            - Tom Clancy
-            - The New York Times
-            - Harry Potter and the Sorcerer's Stone
-            ----------------
-
-            Output:
-            """
+            # Function that gets ner output using LLM
+            @st.cache_resource
+            def get_ner_output(_custom_chain, _docs, ner_prompt, user_input):
+                ner_output = _custom_chain(
+                    {"input_documents": _docs, "question": ner_prompt}, return_only_outputs=True
+                )
+                return ner_output
 
             # ner_output = chain({"input_documents": docs, "question": ner_prompt}, return_only_outputs=True)
-            ner_output = custom_chain(
-                {"input_documents": docs, "question": ner_prompt}, return_only_outputs=True
-            )
+            # ner_output = custom_chain(
+            #     {"input_documents": docs, "question": ner_prompt}, return_only_outputs=True
+            # )
+
+            # ner_output = get_ner_output(custom_chain, docs, NER_PROMPT, user_input=user_input)
             output_1 = ner_output["output_text"]
-            st.markdown(output_1)
             print("output_1: ", output_1)
+
+            def extract_entities(output):
+                output_dict = {}
+                if output.strip().startswith("Output"):
+                    output = output.split("Output:")[1].strip()
+                try:
+                    output_dict = json.loads(output)
+                except Exception as e:
+                    st.error(f"output: {output}")
+                    st.error(f"error: {e}")
+                return output_dict
+
+                # entities = {}
+                # for line in output.splitlines():
+                #     for entity_type in ["PER", "ORG", "LOC", "TIME", "MISC", "Sources"]:
+                #         if line.startswith(entity_type):
+                #             print("line: ", line)
+                #             _, entity = line.split(f"{entity_type}: ")
+                #             entities[entity_type] = entity.split(", ")
+                #             break
+                # return entities
+
+            # Extract the entities from the output
+            entities = extract_entities(output_1)
+
+            # Create columns for each entity type
+            st.markdown("### Entities")
+            columns = st.columns(len(entities))
+            for idx, (entity_type, entity_list) in enumerate(entities.items()):
+                columns[idx].info(f"**{entity_type}**")
+                columns[idx].json(entity_list)
+
+            import spacy
+            from spacy_streamlit import visualize_ner
+
+            doc_selection = st.selectbox(
+                "Select search result to visualize",
+                [idx if idx != 0 else "-" for idx in range(len(docs) + 1)],
+                index=0,
+            )
+
+            if doc_selection and doc_selection != "-":
+                nlp = spacy.load("en_core_web_sm")
+                doc = nlp(docs[doc_selection].page_content)
+                visualize_ner(doc, labels=entities.keys(), show_table=False, title="Entities")
 
             # connection_prompt = """Using the named entity recognition (NER) annotations for the set of texts, identify any connections or commonalities between the texts. Consider how the entities mentioned in each text relate to each other, and whether any patterns emerge across the set. In particular, look for similarities or differences in the types of entities mentioned, and consider how these may be relevant to the themes or topics covered in the texts.
 
@@ -357,15 +370,15 @@ with clarifai_qa:
             # )
             # output_2 = connection_output["output_text"]
 
-            st.session_state.pastcl.append(user_input)
-            st.session_state.generatedcl.append(output_1)
-
             # st.session_state.pastcl.append(user_input)
-            # st.session_state.generatedcl.append(output_2)
-            if st.session_state["generatedcl"]:
-                for i in range(len(st.session_state["generatedcl"]) - 1, -1, -1):
-                    message(st.session_state["generatedcl"][i], key=str(i) + "cl")
-                    message(st.session_state["pastcl"][i], is_user=True, key=str(i) + "_usercl")
+            # st.session_state.generatedcl.append(output_1)
+
+            # # st.session_state.pastcl.append(user_input)
+            # # st.session_state.generatedcl.append(output_2)
+            # if st.session_state["generatedcl"]:
+            #     for i in range(len(st.session_state["generatedcl"]) - 1, -1, -1):
+            #         message(st.session_state["generatedcl"][i], key=str(i) + "cl")
+            #         message(st.session_state["pastcl"][i], is_user=True, key=str(i) + "_usercl")
 
         else:
             st.warning("Found no documents related to your query.")
@@ -375,7 +388,7 @@ with clarifai_agent:
     st.markdown(
         "This will let you ask questions about the text content in your app. Make sure it's indexed with the Language-Understanding base workflow. Instead of using OpenAI embeddings we use that base workflow embeddings AND our own vector search from our API! This seems better than the Q&A concatenation approach as it can iterate on coming to a good answer, can chain thoughts together and doesn't seem to concatenate useless information."
     )
-    ########################################
+
     # Use Clarifai text that is embedded as the docsearch
     docsearch = Clarifai(user_id=userDataObject.user_id, app_id=userDataObject.app_id, pat=auth._pat)
 
@@ -408,3 +421,57 @@ with clarifai_agent:
         for i in range(len(st.session_state["generatedcl2"]) - 1, -1, -1):
             message(st.session_state["generatedcl2"][i], key=str(i) + "cl2")
             message(st.session_state["pastcl2"][i], is_user=True, key=str(i) + "_usercl2")
+
+
+#  ner_prompt = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
+#             LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
+#             The source can be found in the end of the context as "Source: {source name}".
+
+
+#             The format is:
+#             - PER: {list of people}
+#             - ORG: {list of organizations}
+#             - LOC: {list of locations}
+#             - TIME: {list of times}
+#             - MISC: {list of formal agreements and projects}
+#             - Sources: {list of sources}
+
+#             Here are the definitions with a few examples:
+#             PER (person): Refers to individuals, including their names and titles.
+#             Example:
+#             - Barack Obama, former President of the United States
+#             - J.K. Rowling, author of the Harry Potter series
+#             - Elon Musk, CEO of SpaceX and Tesla
+
+#             ORG (organization): Refers to institutions, companies, government bodies, and other groups.
+#             Example:
+#             - Microsoft Corporation, a multinational technology company
+#             - United Nations, an intergovernmental organization
+#             - International Red Cross, a humanitarian organization
+
+#             LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
+#             Example:
+#             - London, capital of England
+#             - Eiffel Tower, a landmark in Paris, France
+#             - Great Barrier Reef, a coral reef system in Australia
+
+#             TIME (date or year): Refers to dates, years, and other time-related expressions.
+#             Example:
+#             - January 1st, 2023, the start of a new year
+#             - 1995, the year Toy Story was released
+
+#             MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
+#             Example:
+#             - Kyoto Protocol, an international agreement to address climate change
+#             - Apollo program, a series of manned spaceflight missions undertaken by NASA
+#             Obamacare, a healthcare reform law in the United States.
+
+#             Sources (list of sources of the text).
+#             Example:
+#             - 100 USA - Update on the National Action Plan
+#             - The New York Times
+#             - Harry Potter and the Sorcerer's Stone
+#             ----------------
+
+#             Output:
+#             """
