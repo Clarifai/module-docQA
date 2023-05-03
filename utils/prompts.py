@@ -1,4 +1,57 @@
 NER_PROMPT = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
+LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects).
+
+EXAMPLES:
+Here are the definitions with a few examples, do not use these examples to answer the question:
+
+PER (person): Proper nouns which refer to specific individuals, including titles. It is not common nouns or groups.
+Example:
+- Barack Obama, former President of the United States
+- J. R. R. Tolkien, author of the Lord of the Rings book series
+- Michelle Wu, current mayor of Boston
+
+ORG (organization): Refers to formally organized groups of people, public and private, including companies, armed forces, and governments, whether their departments or as a whole.
+Example:
+- Microsoft Corporation, a multinational technology company
+- United Nations, an intergovernmental organization
+- the Ministry of Culture of the Republic of Tajikistan, a ministry in the government of Tajikistan
+
+LOC (place name or location): Refers to specific geographic locations such as countries, bodies of water, cities, and other landmarks. It does not refer to anything larger than a country, such as a region or continent. It can be a noun or adjective.
+Example:
+- London, capital of England
+- Eiffel Tower, a landmark in Paris, France
+- the Mediterranean, a European sea connected to the Atlantic Ocean
+
+TIME (date or year): Refers to dates, months, and years, but not hours or times of day.
+Example:
+- January 1st, 2023, the start of a new year
+- 1995, the year Toy Story was released
+
+MISC (formal agreements and projects): Formal agreements and projects between two or more countries or organizations, including treaties and task forces.
+Example:
+- Apollo program, a series of manned spaceflight missions undertaken by NASA
+- Obamacare, a healthcare reform law in the United States
+- the Joint Control Commission, a trilateral peacekeeping force and joint military command structure from Moldova, Transnistria, and Russia
+
+FORMAT:
+Provide them in JSON format with the following 6 keys:
+- PER: (list of people)
+- ORG: (list of organizations)
+- LOC: (list of locations)
+- TIME: (list of times)
+- MISC: (list of formal agreements and projects)
+
+Before you generate the output, make sure that the named entities are correct and part of the context. 
+Do not include any named entities that are part of the EXAMPLES.
+If the named entities are not part of the context, do not include them in the output. 
+Please add a comma after each value in the list except for the last one. 
+
+Context: {page_content}
+
+Output in JSON format: 
+"""
+
+NER_PROMPT_1 = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
 LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
 The source can be extract at the end of the context after '\nSource: '.
 "Make sure the sure is prefixed with 'Source: ' and is on a new line. Do not include any sources that are part of the text."
@@ -16,34 +69,36 @@ Provide them in JSON format with the following 6 keys:
 
 EXAMPLES:
 Here are the definitions with a few examples, do not use these examples to answer the question:
-PER (person): Refers to individuals, including their names and titles.
+PER (person): Proper nouns which refer to specific individuals, including titles. It is not common nouns or groups.
 Example:
 - Barack Obama, former President of the United States
-- J.K. Rowling, author of the Harry Potter series
-- Elon Musk, CEO of SpaceX and Tesla
+- J. R. R. Tolkien, author of the Lord of the Rings book series
+- Michelle Wu, current mayor of Boston
 
-ORG (organization): Refers to institutions, companies, government bodies, and other groups.
+ORG (organization): Refers to formally organized groups of people, public and private, including companies, armed forces, and governments, whether their departments or as a whole.
 Example:
 - Microsoft Corporation, a multinational technology company
 - United Nations, an intergovernmental organization
-- International Red Cross, a humanitarian organization
+- the Ministry of Culture of the Republic of Tajikistan, a ministry in the government of Tajikistan
 
-LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
+LOC (place name or location): Refers to specific geographic locations such as countries, bodies of water, cities, and other landmarks. It does not refer to anything larger than a country, such as a region or continent. It can be a noun or adjective.
 Example:
 - London, capital of England
 - Eiffel Tower, a landmark in Paris, France
-- Great Barrier Reef, a coral reef system in Australia
+- the Mediterranean, a European sea connected to the Atlantic Ocean
 
-TIME (date or year): Refers to dates, years, and other time-related expressions.
+TIME (date or year): Refers to dates, months, and years, but not hours or times of day.
 Example:
 - January 1st, 2023, the start of a new year
 - 1995, the year Toy Story was released
 
-MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
+MISC (formal agreements and projects): Formal agreements and projects between two or more countries or organizations, including treaties and task forces.
 Example:
 - Kyoto Protocol, an international agreement to address climate change
 - Apollo program, a series of manned spaceflight missions undertaken by NASA
 Obamacare, a healthcare reform law in the United States.
+- the Joint Control Commission, a trilateral peacekeeping force and joint military command structure from Moldova,
+Transnistria, and Russia
 
 Sources (list of sources of the text).
 Example:

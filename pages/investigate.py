@@ -23,6 +23,10 @@ from vector.vectorstore import Clarifai
 from utils.prompts import NER_PROMPT, NER_QUESTION_TEMPLATE, NER_REFINE_TEMPLATE
 from utils.investigate_utils import search_with_metadata, process_post_searches_response
 import json
+import concurrent.futures
+import time
+import spacy
+from spacy_streamlit import visualize_ner
 
 # FIXME(zeiler): don't hardcode.
 os.environ["OPENAI_API_KEY"] = "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"
@@ -176,164 +180,130 @@ with clarifai_qa:
 
             llm_chatgpt = OpenAI(temperature=0, max_tokens=1000, model_name="gpt-3.5-turbo")
 
-            page_content = f"{docs[2].page_content}\nSource: {docs[2].metadata['source']}"
+            input_list = [
+                {"page_content": doc.page_content, "source": doc.metadata["source"]} for doc in docs
+            ]
 
-            NER_PROMPT_1 = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
-            LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
-            The source can be extracted after 'Source: '.
-            Make sure the source is prefixed with 'Source: ' and is on a new line. Do not include any sources that are part of the context.
-
-
-            FORMAT:
-            Provide them in JSON format with the following 6 keys:
-            - PER: (list of people)
-            - ORG: (list of organizations)
-            - LOC: (list of locations)
-            - TIME: (list of times)
-            - MISC: (list of formal agreements and projects)
-            - SOURCES: (list of sources)
-
-
-            EXAMPLES:
-            Here are the definitions with a few examples, do not use these examples to answer the question:
-            PER (person): Refers to individuals, including their names and titles.
-            Example:
-            - Barack Obama, former President of the United States
-            - J.K. Rowling, author of the Harry Potter series
-            - Elon Musk, CEO of SpaceX and Tesla
-
-            ORG (organization): Refers to institutions, companies, government bodies, and other groups.
-            Example:
-            - Microsoft Corporation, a multinational technology company
-            - United Nations, an intergovernmental organization
-            - International Red Cross, a humanitarian organization
-
-            LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
-            Example:
-            - London, capital of England
-            - Eiffel Tower, a landmark in Paris, France
-            - Great Barrier Reef, a coral reef system in Australia
-
-            TIME (date or year): Refers to dates, years, and other time-related expressions.
-            Example:
-            - January 1st, 2023, the start of a new year
-            - 1995, the year Toy Story was released
-
-            MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
-            Example:
-            - Kyoto Protocol, an international agreement to address climate change
-            - Apollo program, a series of manned spaceflight missions undertaken by NASA
-            Obamacare, a healthcare reform law in the United States.
-
-            Sources (list of sources of the text).
-            Example:
-            - Tom Clancy's Jack Ryan
-            - The New York Times
-            - Harry Potter and the Sorcerer's Stone
-            ----------------
-
-            Before you generate the output, make sure that the named entities are correct and part of the context. 
-            If the named entities are not part of the context, do not include them in the output. 
-            Please add a comma after each value in the list except for the last one. 
-            
-            Context: {page_content}
-            Source: {source}
-            
-            Output in JSON format: 
-            """
-
-            prompt = PromptTemplate(template=NER_PROMPT_1, input_variables=["page_content", "source"])
+            prompt = PromptTemplate(template=NER_PROMPT, input_variables=["page_content"])
             llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
 
-            st.write(NER_PROMPT_1)
-
             @st.cache_resource
-            def get_openai_output(_llm_chain, page_content, source):
-                chat_output = llm_chain.run({"page_content": page_content, "source": source})
+            def get_openai_output(_llm_chain, input):
+                chat_output = llm_chain(input)
                 return chat_output
 
-            chat_output = get_openai_output(llm_chatgpt, docs[2].page_content, docs[2].metadata["source"])
-            print(chat_output)
+            @st.cache_resource
+            def extract_entities(llm_output):
+                # print("output_str: ", llm_output)
+                # print(type(llm_output))
+                if isinstance(llm_output, dict) and len(llm_output) == 6:
+                    return llm_output
+                elif isinstance(llm_output, str):
+                    entity_dict = {}
+                    llm_output = llm_output.strip()
+                    if "output" in llm_output[:20].lower():
+                        llm_output = llm_output.split("Output:")[1].strip()
+                    try:
+                        entity_dict = json.loads(llm_output)
+                    except Exception as e:
+                        st.error(f"output: {llm_output}")
+                        st.error(f"error: {e}")
+                    return entity_dict
 
-            # ner_output = get_ner_output(custom_chain, docs, NER_PROMPT, user_input=user_input)
-            # output_text = ner_output["output_text"]
-            # print("output_1: ", output_text)
+            # # Measure execution time
+            # start = time.time()
+            # entities_list = []
+            # for input in input_list:
+            #     chat_output = llm_chatgpt(NER_PROMPT.replace("{page_content}", input["page_content"]))
+            #     entities = extract_entities(chat_output)
+            #     entities["SOURCES"] = [input["source"]]
+            #     entities_list.append(entities)
+            # end = time.time()
+            # print(f"Time taken: {end - start}")
 
-            def extract_entities(output_str):
-                entity_dict = {}
-                output_str = output_str.strip()
-                if "output" in output_str[:20].lower():
-                    output_str = output_str.split("Output:")[1].strip()
-                try:
-                    entity_dict = json.loads(output_str)
-                except Exception as e:
-                    st.error(f"output: {output_str}")
-                    st.error(f"error: {e}")
-                return entity_dict
+            def process_input(input):
+                chat_output = get_openai_output(llm_chatgpt, input["page_content"])
+                entities = extract_entities(chat_output["text"])
+                entities["SOURCES"] = [input["source"]]
+                return entities
 
-            # Extract the entities from the output
-            entities = extract_entities(chat_output)
-            print("entities: ", entities)
+            @st.cache_resource
+            def parallel_process_input(input_list):
+                entities_list = []
+                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+                    future_entities = [executor.submit(process_input, input) for input in input_list]
+                    for future in concurrent.futures.as_completed(future_entities):
+                        entities = future.result()
+                        entities_list.append(entities)
+                return entities_list
 
-            # # Extract the entities from the output
-            # entities = extract_entities(output_text)
-            # print("entities: ", entities)
+            # Measure execution time
+            start = time.time()
+            entities_list = parallel_process_input(input_list)
+            end = time.time()
+            print(f"Time taken: {end - start}")
+
+            def combine_dicts(list_of_dicts):
+                result = {}
+                for dict_ in list_of_dicts:
+                    for key, value in dict_.items():
+                        result.setdefault(key, set()).update(value)
+                return {k: sorted(list(v)) for k, v in result.items()}
+
+            combined_entities = combine_dicts(entities_list)
+            print(combined_entities)
 
             entities_help = "- PER (person): Refers to individuals, including their names and titles.\n - ORG (organization): Refers to institutions, companies, government bodies, and other groups.\n - LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.\n - TIME (date or year): Refers to dates, years, and other time-related expressions.\n - MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.\n - Sources (list of sources of the text)"
-            # entities_help = """- PER (person): Refers to individuals, including their names and titles.
-            # - ORG (organization): Refers to institutions, companies, government bodies, and other groups.
-            # - LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
-            # - TIME (date or year): Refers to dates, years, and other time-related expressions.
-            # - MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
-            # - Sources (list of sources of the text)"""
 
             # Create columns for each entity type
             st.markdown("### Entities", help=entities_help)
-            columns = st.columns(len(entities))
-            for idx, (entity_type, entity_list) in enumerate(entities.items()):
+            columns = st.columns(len(combined_entities))
+            for idx, (entity_type, entity_list) in enumerate(combined_entities.items()):
                 columns[idx].info(f"**{entity_type}**")
                 columns[idx].json(entity_list)
 
-            # import spacy
-            # from spacy_streamlit import visualize_ner
+            import spacy
+            from spacy_streamlit import visualize_ner
 
-            # doc_selection = st.selectbox(
-            #     "Select search result to visualize",
-            #     [idx if idx != 0 else "-" for idx in range(len(docs) + 1)],
-            #     index=0,
-            # )
+            doc_selection = st.selectbox(
+                "Select search result to visualize",
+                [idx if idx != 0 else "-" for idx in range(len(docs) + 1)],
+                index=0,
+            )
 
-            # if doc_selection and doc_selection != "-":
-            #     nlp = spacy.load("en_core_web_sm")
-            #     doc = nlp(docs[doc_selection].page_content)
-            #     visualize_ner(doc, labels=entities.keys(), show_table=False, title="Entities")
+            if doc_selection and doc_selection != "-":
+                nlp = spacy.load("en_core_web_sm")
+                doc = nlp(docs[doc_selection].page_content)
+                st.markdown(f"### {docs[doc_selection].metadata['source']}")
+                visualize_ner(doc, labels=combined_entities.keys(), show_table=False, title="Entities")
 
-            #     # Function that gets summarization output using LLM chain
-            #     @st.cache_resource
-            #     def get_summarization_output(doc_selection):
-            #         auth = ClarifaiAuthHelper.from_streamlit(st)
-            #         stub = create_stub(auth)
-            #         userDataObject = auth.get_user_app_id_proto()
+                # Function that gets summarization output using LLM chain
+                @st.cache_resource
+                def get_summarization_output(doc_selection):
+                    auth = ClarifaiAuthHelper.from_streamlit(st)
+                    stub = create_stub(auth)
+                    userDataObject = auth.get_user_app_id_proto()
 
-            #         post_searches_response = search_with_metadata(
-            #             stub,
-            #             userDataObject,
-            #             search_metadata_key="source",
-            #             search_metadata_value=docs[doc_selection].metadata["source"],
-            #         )
-            #         search_input_df = pd.DataFrame(process_post_searches_response(post_searches_response))
-            #         search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
-            #         search_input_df.reset_index(drop=True, inplace=True)
-            #         full_text = "\n".join(search_input_df.text.to_list())
+                    post_searches_response = search_with_metadata(
+                        stub,
+                        userDataObject,
+                        search_metadata_key="source",
+                        search_metadata_value=docs[doc_selection].metadata["source"],
+                    )
+                    search_input_df = pd.DataFrame(process_post_searches_response(post_searches_response))
+                    search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
+                    search_input_df.reset_index(drop=True, inplace=True)
+                    st.dataframe(search_input_df)
+                    full_text = "\n".join(search_input_df.text.to_list())
 
-            #         llm = OpenAI(temperature=0, max_tokens=512)
-            #         summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
-            #         summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
-            #         text_summary = summarize_document_chain.run(full_text)
-            #         return text_summary
+                    llm = OpenAI(temperature=0, max_tokens=1024)
+                    summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
+                    summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
+                    text_summary = summarize_document_chain.run(full_text)
+                    return text_summary
 
-            #     if st.button("Summarize"):
-            #         st.write(get_summarization_output(doc_selection))
+                if st.button("Summarize"):
+                    st.write(get_summarization_output(doc_selection))
 
             # connection_prompt = """Using the named entity recognition (NER) annotations for the set of texts, identify any connections or commonalities between the texts. Consider how the entities mentioned in each text relate to each other, and whether any patterns emerge across the set. In particular, look for similarities or differences in the types of entities mentioned, and consider how these may be relevant to the themes or topics covered in the texts.
 
