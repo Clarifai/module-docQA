@@ -3,6 +3,7 @@ import PyPDF2
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
+import pandas as pd
 
 from utils.upload_utils import post_texts, word_counter, split_into_chunks
 
@@ -51,8 +52,8 @@ if uploaded_file:
         print(page_text)
         page_text_chunks = split_into_chunks(page_text, text_chunk_size)
         text_chunks.extend(page_text_chunks)
-        page_number_list.extend([str(page_idx)] * len(page_text_chunks))
-        page_chunk_number_list.extend([str(idx) for idx in range(len(page_text_chunks))])
+        page_number_list.extend([page_idx] * len(page_text_chunks))
+        page_chunk_number_list.extend([idx for idx in range(len(page_text_chunks))])
         print("length of text chunks", len(text_chunks))
 
     # # Save list to a txt file for debugging
@@ -74,5 +75,9 @@ if uploaded_file:
     ]
     print(text_chunks[-1])
     print(metadata_list[-1])
+
+    metadata_df = pd.DataFrame(metadata_list)
+    metadata_sorted_df = metadata_df.sort_values(["page_number", "page_chunk_number"])
+    st.dataframe(metadata_sorted_df)
 
     post_texts(st, stub, userDataObject, text_chunks, metadata_list)

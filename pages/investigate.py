@@ -9,7 +9,7 @@ from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from langchain import LLMChain, OpenAI, PromptTemplate
 from langchain.agents.agent_toolkits import VectorStoreInfo, VectorStoreToolkit, create_vectorstore_agent
-from langchain.chains import ConversationChain
+from langchain.chains import ConversationChain, AnalyzeDocumentChain
 from langchain.chains.qa_with_sources import load_qa_with_sources_chain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
@@ -20,13 +20,16 @@ from langchain.vectorstores import FAISS
 from streamlit_chat import message
 import pandas as pd
 from vector.vectorstore import Clarifai
-from utils.prompts import NER_PROMPT
+from utils.prompts import NER_PROMPT, NER_QUESTION_TEMPLATE, NER_REFINE_TEMPLATE
+from utils.investigate_utils import search_with_metadata, process_post_searches_response
 import json
 
 # FIXME(zeiler): don't hardcode.
 os.environ["OPENAI_API_KEY"] = "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"
 
-st.set_page_config(page_title="GEOINT NER Investigation", page_icon=":robot:", layout="wide")
+st.set_page_config(
+    page_title="GEOINT NER Investigation", page_icon="https://clarifai.com/favicon.svg", layout="wide"
+)
 
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
@@ -57,21 +60,22 @@ def load_qa_with_sources():
 def load_custom_qa_with_sources():
     refine_template = (
         "The original question is as follows: {question}\n"
-        "We have provided an existing answer, including sources: {existing_answer}\n"
-        "Do not remove any entities or sources from the existing answer."
-        "We have the opportunity to update the list of named entities and sources"
-        "(only if needed) with some more context below.\n"
-        "Make sure any entities extracted are part of the context below. If not, do not add them to the list."
-        "If you see any entities that are not extracted, add them."
-        "Use only the context below delimited by triple backticks.\n"
+        "We have provided an existing answer: {existing_answer}\n"
+        "Do not remove any entities or sources from the existing answer.\n"
+        "We have the opportunity to update the list of named entities and sources\n"
+        "(only if needed) using the context below delimited by triple backticks.\n"
+        "Make sure any entities extracted are part of the context below. If not, do not add them to the list.\n"
+        "If you see any entities that are not extracted, add them.\n"
+        "The new source can be extracted at the end of the context after 'Source: '.\n"
+        "Use only the context below.\n"
         "------------\n"
-        "```{context_str}```\n"
+        "{context_str}\n"
         "------------\n"
-        "Given the new context, update the original answer to extract additional entities and sources."
-        "Create a more accurate list of named entities and sources."
-        "If you do update it, please update the sources as well while keeping the existing sources."
-        "The new source can be extracted from the end of the context after 'Source: '"
-        "If the context isn't useful, return the original answer."
+        "Given the new context, update the original answer to extract additional entities and sources.\n"
+        "Create a more accurate list of named entities and sources.\n"
+        "If you do update it, please update the sources as well while keeping the existing sources.\n"
+        "If the context isn't useful, return the existing answer in JSON format unchanged.\n"
+        "Output in JSON format:"
     )
     refine_prompt = PromptTemplate(
         input_variables=["question", "existing_answer", "context_str"],
@@ -79,19 +83,18 @@ def load_custom_qa_with_sources():
     )
 
     question_template = (
-        "Context information is below delimited by triple backticks. \n"
+        "Context information is below. \n"
         "---------------------\n"
-        "```{context_str}```"
+        "{context_str}"
         "\n---------------------\n"
         "Given the context information and not prior knowledge, "
         "answer the question: {question}\n"
+        "Output in JSON format:"
     )
     question_prompt = PromptTemplate(input_variables=["context_str", "question"], template=question_template)
 
     chain = load_qa_with_sources_chain(
-        OpenAI(
-            temperature=0, model_name="gpt-3.5-turbo", max_tokens=2500
-        ),  # model_name="gpt-3.5-turbo",  max_tokens=512
+        OpenAI(temperature=0, max_tokens=-1),  # model_name="gpt-3.5-turbo",  max_tokens=2000
         chain_type="refine",
         return_intermediate_steps=True,
         question_prompt=question_prompt,
@@ -113,138 +116,8 @@ def load_qa_agent_with_sources(docstore):
     return agent_executor
 
 
-clarifai_qa, clarifai_agent, summarize_tab, pdf_tab, pdf_qa = st.tabs(
-    ["Clarifai Q&A", "Clarifai Agent", "Summarization Text", "Summarize PDF", "Q&A PDF"]
-)
+clarifai_qa, clarifai_agent = st.tabs(["Clarifai Q&A", "Clarifai Agent"])
 
-
-with summarize_tab:
-
-    st.markdown(
-        "Take in the snippet of text and summarize it. Has to fit into the context of a LLM and summarizes it directly in the LLM."
-    )
-    chain = load_sum_chain()
-    text_splitter = CharacterTextSplitter()
-
-    text_input = st.text_input("Input the text to summarize")
-
-    if text_input:
-
-        texts = text_splitter.split_text(text_input)
-
-        docs = [Document(page_content=t) for t in texts[:3]]
-
-        # chain.run(docs)
-        response = chain({"input_documents": docs}, return_only_outputs=True)
-
-        st.title("Summary:")
-        st.write(response)
-
-with pdf_tab:
-
-    st.markdown("Take in the PDF and summarizes it, but all at once.")
-
-    chain = load_sum_chain()
-    text_splitter = CharacterTextSplitter()
-
-    uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
-
-    if uploaded_file:
-
-        # bytes_data = uploaded_file.getvalue()a
-
-        reader = PyPDF2.PdfReader(uploaded_file)
-
-        texts = []
-        for p in reader.pages:
-            texts.append(p.extract_text())
-
-        with st.expander("Read text"):
-            st.write(texts)
-
-        # texts = text_splitter.split_text(text)
-
-        docs = [Document(page_content=t) for t in texts[:3]]
-
-        # chain.run(docs)
-        response = chain({"input_documents": docs}, return_only_outputs=True)
-
-        st.title("Summary:")
-        st.write(response)
-
-with pdf_qa:
-    st.markdown(
-        "This will let you ask questions about the uploaded PDF by embedding chunks of it using OpenAI embeddings and then summarizing what it finds. This does not call our API at all."
-    )
-
-    chain = load_qa_with_sources()
-    text_splitter = CharacterTextSplitter()
-
-    uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
-
-    if uploaded_file:
-
-        # bytes_data = uploaded_file.getvalue()a
-
-        reader = PyPDF2.PdfReader(uploaded_file)
-
-        texts = []
-        for p in reader.pages:
-            texts.append(p.extract_text())
-
-        texts = [t for t in texts if t]
-
-        # texts = texts[:10]
-
-        with st.expander("Read text"):
-            st.write(texts)
-        st.write("Number of texts: %d" % len(texts))
-
-        @st.cache_resource
-        def get_docsearch(texts):
-            embeddings = OpenAIEmbeddings()
-            docsearch = FAISS.from_texts(
-                texts, embeddings, metadatas=[{"source": str(i)} for i in range(len(texts))]
-            )
-            return docsearch
-
-        docsearch = get_docsearch(texts)
-
-        if "generatedqa" not in st.session_state:
-            st.session_state["generatedqa"] = []
-
-        if "pastqa" not in st.session_state:
-            st.session_state["pastqa"] = []
-
-        def get_text():
-            input_text = st.text_input(
-                "You: ",
-                placeholder=f"Hello, what questions do you have about {uploaded_file.name}?",
-                key="input_qapdf",
-            )
-            return input_text
-
-        user_input = get_text()
-
-        if user_input:
-            docs = docsearch.similarity_search(user_input)
-
-            st.write("Found %d documents" % len(docs))
-
-            output = chain({"input_documents": docs, "question": user_input}, return_only_outputs=True)
-            output = output["output_text"]
-
-            st.session_state.pastqa.append(user_input)
-            st.session_state.generatedqa.append(output)
-
-        if st.session_state["generatedqa"]:
-
-            for i in range(len(st.session_state["generatedqa"]) - 1, -1, -1):
-                message(st.session_state["generatedqa"][i], key=str(i) + "qa")
-                message(st.session_state["pastqa"][i], is_user=True, key=str(i) + "_userqa")
-
-        # st.title("Summary:")
-        # st.write(response)
 
 with clarifai_qa:
 
@@ -256,17 +129,12 @@ with clarifai_qa:
     custom_chain = load_custom_qa_with_sources()
     text_splitter = CharacterTextSplitter()
 
-    # if "generatedcl" not in st.session_state:
-    #     st.session_state["generatedcl"] = []
-
-    # if "pastcl" not in st.session_state:
-    #     st.session_state["pastcl"] = []
-
     def get_text():
         input_text = st.text_input(
-            "You: ",
+            "Search Query: ",
             placeholder=f"Type words or sentences to search for in your app",
             key="input_clqa",
+            help="This will search for similar text in your Clarifai app.",
         )
         return input_text
 
@@ -291,13 +159,11 @@ with clarifai_qa:
         with st.expander(f"{len(docs)} Docs answering from:"):
             for idx, doc in enumerate(docs):
                 st.markdown(f"### Search Result: {idx+1}")
-                st.markdown(f"**{doc.page_content}**")
+                st.write(f"**{doc.page_content}**")
                 st.write(doc.metadata)
                 st.text("")
 
         if docs != []:
-            st.write("Now going to use the LLM to understand and summarize the information...")
-
             # Function that gets ner output using LLM
             @st.cache_resource
             def get_ner_output(_custom_chain, _docs, ner_prompt, user_input):
@@ -306,59 +172,168 @@ with clarifai_qa:
                 )
                 return ner_output
 
-            # ner_output = chain({"input_documents": docs, "question": ner_prompt}, return_only_outputs=True)
-            # ner_output = custom_chain(
-            #     {"input_documents": docs, "question": ner_prompt}, return_only_outputs=True
-            # )
+            # llm_ada = OpenAI(temperature=0, max_tokens=-1)
+
+            llm_chatgpt = OpenAI(temperature=0, max_tokens=1000, model_name="gpt-3.5-turbo")
+
+            page_content = f"{docs[2].page_content}\nSource: {docs[2].metadata['source']}"
+
+            NER_PROMPT_1 = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
+            LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
+            The source can be extracted after 'Source: '.
+            Make sure the source is prefixed with 'Source: ' and is on a new line. Do not include any sources that are part of the context.
+
+
+            FORMAT:
+            Provide them in JSON format with the following 6 keys:
+            - PER: (list of people)
+            - ORG: (list of organizations)
+            - LOC: (list of locations)
+            - TIME: (list of times)
+            - MISC: (list of formal agreements and projects)
+            - SOURCES: (list of sources)
+
+
+            EXAMPLES:
+            Here are the definitions with a few examples, do not use these examples to answer the question:
+            PER (person): Refers to individuals, including their names and titles.
+            Example:
+            - Barack Obama, former President of the United States
+            - J.K. Rowling, author of the Harry Potter series
+            - Elon Musk, CEO of SpaceX and Tesla
+
+            ORG (organization): Refers to institutions, companies, government bodies, and other groups.
+            Example:
+            - Microsoft Corporation, a multinational technology company
+            - United Nations, an intergovernmental organization
+            - International Red Cross, a humanitarian organization
+
+            LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
+            Example:
+            - London, capital of England
+            - Eiffel Tower, a landmark in Paris, France
+            - Great Barrier Reef, a coral reef system in Australia
+
+            TIME (date or year): Refers to dates, years, and other time-related expressions.
+            Example:
+            - January 1st, 2023, the start of a new year
+            - 1995, the year Toy Story was released
+
+            MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
+            Example:
+            - Kyoto Protocol, an international agreement to address climate change
+            - Apollo program, a series of manned spaceflight missions undertaken by NASA
+            Obamacare, a healthcare reform law in the United States.
+
+            Sources (list of sources of the text).
+            Example:
+            - Tom Clancy's Jack Ryan
+            - The New York Times
+            - Harry Potter and the Sorcerer's Stone
+            ----------------
+
+            Before you generate the output, make sure that the named entities are correct and part of the context. 
+            If the named entities are not part of the context, do not include them in the output. 
+            Please add a comma after each value in the list except for the last one. 
+            
+            Context: {page_content}
+            Source: {source}
+            
+            Output in JSON format: 
+            """
+
+            prompt = PromptTemplate(template=NER_PROMPT_1, input_variables=["page_content", "source"])
+            llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
+
+            st.write(NER_PROMPT_1)
+
+            @st.cache_resource
+            def get_openai_output(_llm_chain, page_content, source):
+                chat_output = llm_chain.run({"page_content": page_content, "source": source})
+                return chat_output
+
+            chat_output = get_openai_output(llm_chatgpt, docs[2].page_content, docs[2].metadata["source"])
+            print(chat_output)
 
             # ner_output = get_ner_output(custom_chain, docs, NER_PROMPT, user_input=user_input)
-            output_1 = ner_output["output_text"]
-            print("output_1: ", output_1)
+            # output_text = ner_output["output_text"]
+            # print("output_1: ", output_text)
 
-            def extract_entities(output):
-                output_dict = {}
-                if output.strip().startswith("Output"):
-                    output = output.split("Output:")[1].strip()
+            def extract_entities(output_str):
+                entity_dict = {}
+                output_str = output_str.strip()
+                if "output" in output_str[:20].lower():
+                    output_str = output_str.split("Output:")[1].strip()
                 try:
-                    output_dict = json.loads(output)
+                    entity_dict = json.loads(output_str)
                 except Exception as e:
-                    st.error(f"output: {output}")
+                    st.error(f"output: {output_str}")
                     st.error(f"error: {e}")
-                return output_dict
-
-                # entities = {}
-                # for line in output.splitlines():
-                #     for entity_type in ["PER", "ORG", "LOC", "TIME", "MISC", "Sources"]:
-                #         if line.startswith(entity_type):
-                #             print("line: ", line)
-                #             _, entity = line.split(f"{entity_type}: ")
-                #             entities[entity_type] = entity.split(", ")
-                #             break
-                # return entities
+                return entity_dict
 
             # Extract the entities from the output
-            entities = extract_entities(output_1)
+            entities = extract_entities(chat_output)
+            print("entities: ", entities)
+
+            # # Extract the entities from the output
+            # entities = extract_entities(output_text)
+            # print("entities: ", entities)
+
+            entities_help = "- PER (person): Refers to individuals, including their names and titles.\n - ORG (organization): Refers to institutions, companies, government bodies, and other groups.\n - LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.\n - TIME (date or year): Refers to dates, years, and other time-related expressions.\n - MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.\n - Sources (list of sources of the text)"
+            # entities_help = """- PER (person): Refers to individuals, including their names and titles.
+            # - ORG (organization): Refers to institutions, companies, government bodies, and other groups.
+            # - LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
+            # - TIME (date or year): Refers to dates, years, and other time-related expressions.
+            # - MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
+            # - Sources (list of sources of the text)"""
 
             # Create columns for each entity type
-            st.markdown("### Entities")
+            st.markdown("### Entities", help=entities_help)
             columns = st.columns(len(entities))
             for idx, (entity_type, entity_list) in enumerate(entities.items()):
                 columns[idx].info(f"**{entity_type}**")
                 columns[idx].json(entity_list)
 
-            import spacy
-            from spacy_streamlit import visualize_ner
+            # import spacy
+            # from spacy_streamlit import visualize_ner
 
-            doc_selection = st.selectbox(
-                "Select search result to visualize",
-                [idx if idx != 0 else "-" for idx in range(len(docs) + 1)],
-                index=0,
-            )
+            # doc_selection = st.selectbox(
+            #     "Select search result to visualize",
+            #     [idx if idx != 0 else "-" for idx in range(len(docs) + 1)],
+            #     index=0,
+            # )
 
-            if doc_selection and doc_selection != "-":
-                nlp = spacy.load("en_core_web_sm")
-                doc = nlp(docs[doc_selection].page_content)
-                visualize_ner(doc, labels=entities.keys(), show_table=False, title="Entities")
+            # if doc_selection and doc_selection != "-":
+            #     nlp = spacy.load("en_core_web_sm")
+            #     doc = nlp(docs[doc_selection].page_content)
+            #     visualize_ner(doc, labels=entities.keys(), show_table=False, title="Entities")
+
+            #     # Function that gets summarization output using LLM chain
+            #     @st.cache_resource
+            #     def get_summarization_output(doc_selection):
+            #         auth = ClarifaiAuthHelper.from_streamlit(st)
+            #         stub = create_stub(auth)
+            #         userDataObject = auth.get_user_app_id_proto()
+
+            #         post_searches_response = search_with_metadata(
+            #             stub,
+            #             userDataObject,
+            #             search_metadata_key="source",
+            #             search_metadata_value=docs[doc_selection].metadata["source"],
+            #         )
+            #         search_input_df = pd.DataFrame(process_post_searches_response(post_searches_response))
+            #         search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
+            #         search_input_df.reset_index(drop=True, inplace=True)
+            #         full_text = "\n".join(search_input_df.text.to_list())
+
+            #         llm = OpenAI(temperature=0, max_tokens=512)
+            #         summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
+            #         summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
+            #         text_summary = summarize_document_chain.run(full_text)
+            #         return text_summary
+
+            #     if st.button("Summarize"):
+            #         st.write(get_summarization_output(doc_selection))
 
             # connection_prompt = """Using the named entity recognition (NER) annotations for the set of texts, identify any connections or commonalities between the texts. Consider how the entities mentioned in each text relate to each other, and whether any patterns emerge across the set. In particular, look for similarities or differences in the types of entities mentioned, and consider how these may be relevant to the themes or topics covered in the texts.
 
@@ -421,57 +396,3 @@ with clarifai_agent:
         for i in range(len(st.session_state["generatedcl2"]) - 1, -1, -1):
             message(st.session_state["generatedcl2"][i], key=str(i) + "cl2")
             message(st.session_state["pastcl2"][i], is_user=True, key=str(i) + "_usercl2")
-
-
-#  ner_prompt = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
-#             LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
-#             The source can be found in the end of the context as "Source: {source name}".
-
-
-#             The format is:
-#             - PER: {list of people}
-#             - ORG: {list of organizations}
-#             - LOC: {list of locations}
-#             - TIME: {list of times}
-#             - MISC: {list of formal agreements and projects}
-#             - Sources: {list of sources}
-
-#             Here are the definitions with a few examples:
-#             PER (person): Refers to individuals, including their names and titles.
-#             Example:
-#             - Barack Obama, former President of the United States
-#             - J.K. Rowling, author of the Harry Potter series
-#             - Elon Musk, CEO of SpaceX and Tesla
-
-#             ORG (organization): Refers to institutions, companies, government bodies, and other groups.
-#             Example:
-#             - Microsoft Corporation, a multinational technology company
-#             - United Nations, an intergovernmental organization
-#             - International Red Cross, a humanitarian organization
-
-#             LOC (place name or location): Refers to geographic locations such as countries, cities, and other landmarks.
-#             Example:
-#             - London, capital of England
-#             - Eiffel Tower, a landmark in Paris, France
-#             - Great Barrier Reef, a coral reef system in Australia
-
-#             TIME (date or year): Refers to dates, years, and other time-related expressions.
-#             Example:
-#             - January 1st, 2023, the start of a new year
-#             - 1995, the year Toy Story was released
-
-#             MISC (formal agreements and projects): Refers to miscellaneous named entities that don't fit into the other categories, including formal agreements, projects, and other concepts.
-#             Example:
-#             - Kyoto Protocol, an international agreement to address climate change
-#             - Apollo program, a series of manned spaceflight missions undertaken by NASA
-#             Obamacare, a healthcare reform law in the United States.
-
-#             Sources (list of sources of the text).
-#             Example:
-#             - 100 USA - Update on the National Action Plan
-#             - The New York Times
-#             - Harry Potter and the Sorcerer's Stone
-#             ----------------
-
-#             Output:
-#             """

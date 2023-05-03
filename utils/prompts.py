@@ -1,8 +1,10 @@
 NER_PROMPT = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
 LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
-The source can be extract from end of the context after 'Source: '.
+The source can be extract at the end of the context after '\nSource: '.
+"Make sure the sure is prefixed with 'Source: ' and is on a new line. Do not include any sources that are part of the text."
 
 
+FORMAT:
 Provide them in JSON format with the following 6 keys:
 - PER: {list of people}
 - ORG: {list of organizations}
@@ -11,7 +13,9 @@ Provide them in JSON format with the following 6 keys:
 - MISC: {list of formal agreements and projects}
 - SOURCES: {list of sources}
 
-Here are the definitions with a few examples:
+
+EXAMPLES:
+Here are the definitions with a few examples, do not use these examples to answer the question:
 PER (person): Refers to individuals, including their names and titles.
 Example:
 - Barack Obama, former President of the United States
@@ -50,6 +54,32 @@ Example:
 
 Before you generate the output, make sure that the named entities are correct and part of the context. 
 If the named entities are not part of the context, do not include them in the output.
-
-Output:
 """
+
+NER_REFINE_TEMPLATE = (
+    "The original question is as follows: {question}\n"
+    "We have provided an existing answer, including sources: {existing_answer}\n"
+    "Do not remove any entities or sources from the existing answer."
+    "We have the opportunity to update the list of named entities and sources"
+    "(only if needed) with some more context below.\n"
+    "Make sure any entities extracted are part of the context below. If not, do not add them to the list."
+    "If you see any entities that are not extracted, add them."
+    "Use only the context below delimited by triple backticks.\n"
+    "------------\n"
+    "```{context_str}```\n"
+    "------------\n"
+    "Given the new context, update the original answer to extract additional entities and sources."
+    "Create a more accurate list of named entities and sources."
+    "If you do update it, please update the sources as well while keeping the existing sources."
+    "The new source can be extracted from the end of the context after 'Source: '"
+    "If the context isn't useful, return the existing answer unchanged."
+)
+
+NER_QUESTION_TEMPLATE = (
+    "Context information is below delimited by triple backticks. \n"
+    "---------------------\n"
+    "```{context_str}```"
+    "\n---------------------\n"
+    "Given the context information and not prior knowledge, "
+    "answer the question: {question}\n"
+)
