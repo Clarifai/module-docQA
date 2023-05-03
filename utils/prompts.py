@@ -30,7 +30,6 @@ Example:
 MISC (formal agreements and projects): Formal agreements and projects between two or more countries or organizations, including treaties and task forces.
 Example:
 - Apollo program, a series of manned spaceflight missions undertaken by NASA
-- Obamacare, a healthcare reform law in the United States
 - the Joint Control Commission, a trilateral peacekeeping force and joint military command structure from Moldova, Transnistria, and Russia
 
 FORMAT:
@@ -113,28 +112,30 @@ If the named entities are not part of the context, do not include them in the ou
 
 NER_REFINE_TEMPLATE = (
     "The original question is as follows: {question}\n"
-    "We have provided an existing answer, including sources: {existing_answer}\n"
-    "Do not remove any entities or sources from the existing answer."
-    "We have the opportunity to update the list of named entities and sources"
-    "(only if needed) with some more context below.\n"
-    "Make sure any entities extracted are part of the context below. If not, do not add them to the list."
-    "If you see any entities that are not extracted, add them."
-    "Use only the context below delimited by triple backticks.\n"
+    "We have provided an existing answer: {existing_answer}\n"
+    "Do not remove any entities or sources from the existing answer.\n"
+    "We have the opportunity to update the list of named entities and sources\n"
+    "(only if needed) using the context below delimited by triple backticks.\n"
+    "Make sure any entities extracted are part of the context below. If not, do not add them to the list.\n"
+    "If you see any entities that are not extracted, add them.\n"
+    "The new source can be extracted at the end of the context after 'Source: '.\n"
+    "Use only the context below.\n"
     "------------\n"
-    "```{context_str}```\n"
+    "{context_str}\n"
     "------------\n"
-    "Given the new context, update the original answer to extract additional entities and sources."
-    "Create a more accurate list of named entities and sources."
-    "If you do update it, please update the sources as well while keeping the existing sources."
-    "The new source can be extracted from the end of the context after 'Source: '"
-    "If the context isn't useful, return the existing answer unchanged."
+    "Given the new context, update the original answer to extract additional entities and sources.\n"
+    "Create a more accurate list of named entities and sources.\n"
+    "If you do update it, please update the sources as well while keeping the existing sources.\n"
+    "If the context isn't useful, return the existing answer in JSON format unchanged.\n"
+    "Output in JSON format:"
 )
 
 NER_QUESTION_TEMPLATE = (
-    "Context information is below delimited by triple backticks. \n"
+    "Context information is below. \n"
     "---------------------\n"
-    "```{context_str}```"
+    "{context_str}"
     "\n---------------------\n"
     "Given the context information and not prior knowledge, "
     "answer the question: {question}\n"
+    "Output in JSON format:"
 )

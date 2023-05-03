@@ -51,6 +51,7 @@ def calculate_expected_batch_number(inputs: List[Any], batch_size: int) -> int:
 def url_to_text(url):
     try:
         response = requests.get(url)
+        response.encoding = response.apparent_encoding
     except Exception as e:
         print(f"Error: {e}")
         response = None
