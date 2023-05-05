@@ -1,11 +1,17 @@
 """Python file to serve as the frontend"""
 import PyPDF2
+import os
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 import pandas as pd
+from langchain import LLMChain, OpenAI, PromptTemplate
+from geopy.geocoders import Nominatim
 
-from utils.upload_utils import post_texts, word_counter, split_into_chunks
+from utils.upload_utils import post_texts_with_geo, word_counter, split_into_chunks
+from utils.prompts import NER_LOC_PROMPT
+
+os.environ["OPENAI_API_KEY"] = "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"
 
 st.set_page_config(page_title="Upload App", page_icon=":robot:")
 
@@ -18,6 +24,7 @@ st.markdown(
         and `data.metadata.page_number = {page number of document}`."
 )
 
+geolocator = Nominatim(user_agent="test")
 
 text_chunk_size = st.number_input("Text chunk size", min_value=100, max_value=3000, value=500, step=100)
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
@@ -80,4 +87,29 @@ if uploaded_file:
     metadata_sorted_df = metadata_df.sort_values(["page_number", "page_chunk_number"])
     st.dataframe(metadata_sorted_df)
 
-    # post_texts(st, stub, userDataObject, text_chunks, metadata_list)
+    llm_chatgpt = OpenAI(temperature=0, max_tokens=1500, model_name="gpt-3.5-turbo")
+    prompt = PromptTemplate(template=NER_LOC_PROMPT, input_variables=["page_content"])
+    llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
+
+    geo_points_list = []
+    for idx, text_chunk in enumerate(text_chunks):
+        chat_output = llm_chain(text_chunk)
+        st.write(chat_output["text"])
+
+        try:
+            geo_points = {}
+            location = geolocator.geocode(chat_output["text"])
+            st.info(f"{location.address} {location.latitude, location.longitude}")
+            geo_points["lat"] = location.latitude
+            geo_points["lon"] = location.longitude
+            geo_points_list.append(geo_points)
+            metadata_list[idx]["location"] = str(location.address)
+
+        except AttributeError:
+            st.warning("No location found")
+            geo_points = {}
+            geo_points["lat"] = None
+            geo_points["lon"] = None
+            geo_points_list.append(geo_points)
+
+    post_texts_with_geo(st, stub, userDataObject, text_chunks, metadata_list, geo_points_list)

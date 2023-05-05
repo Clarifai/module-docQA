@@ -9,6 +9,7 @@ import folium
 from streamlit_folium import st_folium, folium_static
 import os
 from langchain import LLMChain, OpenAI, PromptTemplate
+from langchain.chat_models import ChatOpenAI
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chains import ConversationChain, AnalyzeDocumentChain
 from langchain.docstore.document import Document

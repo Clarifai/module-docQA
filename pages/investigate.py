@@ -185,8 +185,6 @@ if user_input:
             )
             return ner_output
 
-        # llm_ada = OpenAI(temperature=0, max_tokens=-1)
-
         input_list = [{"page_content": doc.page_content, "source": doc.metadata["source"]} for doc in docs]
 
         llm_chatgpt = OpenAI(temperature=0, max_tokens=1500, model_name="gpt-3.5-turbo")
@@ -327,10 +325,10 @@ if user_input:
                     st.write(st.session_state.full_text)
 
                 if st.session_state.full_text != "":
-                    split_texts = text_splitter.split_text(st.session_state.full_text)
-                    print("split_texts: ", split_texts)
+                    # split_texts = text_splitter.split_text(st.session_state.full_text)
+                    # print("split_texts: ", split_texts)
 
-                    documents = text_splitter.create_documents(split_texts)
+                    documents = text_splitter.create_documents([st.session_state.full_text[:10000]])
 
                     embeddings = OpenAIEmbeddings()
                     vectorstore = Chroma.from_documents(documents, embeddings)

@@ -50,6 +50,84 @@ Context: {page_content}
 Output in JSON format: 
 """
 
+
+NER_LOC_PROMPT = """Using the context, extract one location. If there are multiple locations, extract the most important one.
+
+EXAMPLES:
+Here are the definition with a few examples, do not use these examples to answer the question:
+
+LOC (location name): Refers to specific geographic locations such as a country or a city. It does not refer to a region, a continent, an island or body of water.
+Example:
+- London
+- United States
+- Peru
+- Montreal
+- Jakarta
+
+Bad Examples:
+- East of the Mississippi River
+- the Mediterranean
+- East Jakarta
+
+FORMAT:
+The location should be a string and have no other characters or spaces.
+LOC: (location name)
+
+Before you generate the output, make sure that the location is correct and part of the context. 
+Make sure that location is a real location.
+Do not include any locations that are part of the EXAMPLES.
+If the location is not part of the context, do not include it in the output. 
+If there is no location of a country or city mentioned in the context, return empty string: ''
+
+Context: {page_content}
+
+LOC: 
+"""
+
+
+NER_LOC_RADIUS_PROMPT = """Using the context, extract one location and the kilometer radius. If there are multiple locations, extract the most important one.
+
+EXAMPLES:
+Here are the definition with a few examples, do not use these examples to answer the question:
+
+LOC (location name): Refers to specific geographic locations such as a country or a city. It does not refer to a region, a continent, an island or body of water.
+Example:
+- London
+- United States
+- Peru
+- Montreal
+- Jakarta
+
+Bad Examples:
+- East of the Mississippi River
+- the Mediterranean
+- East Jakarta
+
+RADIUS (kilometer radius): Refers to the distance from the location in kilometers. 
+If there is no radius, return 0. If radius is in miles, convert it to kilometers.
+Example:
+- 19
+- 100
+- 0.5
+
+
+FORMAT:
+Provide them in JSON format with the following 2 keys:
+LOC: (location name as a string)
+RADIUS: (kilometer radius as a float)
+
+Before you generate the output, make sure that the location is correct and part of the context. 
+Make sure that location is a real location.
+Do not include any locations that are part of the EXAMPLES.
+If the location is not part of the context, do not include it in the output. 
+If there is no location of a country or city mentioned in the context, return None.
+
+Context: {page_content}
+
+Output in JSON format: 
+"""
+
+
 NER_PROMPT_1 = """Using the context, do entity recognition of these texts using PER (person), ORG (organization),
 LOC (place name or location), TIME (actually date or year), and MISC (formal agreements and projects) and the Sources (the name of the document where the text is extracted from).
 The source can be extract at the end of the context after '\nSource: '.
