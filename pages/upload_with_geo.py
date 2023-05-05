@@ -43,9 +43,6 @@ if uploaded_file:
     for page_idx, page in enumerate(reader.pages):
         print("default page_idx: ", page_idx)
 
-        # if page_idx == 6:
-        #     break
-
         current_page_text = page.extract_text()
         page_text = prev_page_text + current_page_text
 

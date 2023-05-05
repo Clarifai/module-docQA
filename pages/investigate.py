@@ -31,7 +31,7 @@ import time
 import spacy
 from spacy_streamlit import visualize_ner
 
-os.environ["OPENAI_API_KEY"] = "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"
+# os.environ["OPENAI_API_KEY"] = "API_KEY"
 
 st.set_page_config(
     page_title="GEOINT NER Investigation", page_icon="https://clarifai.com/favicon.svg", layout="wide"
