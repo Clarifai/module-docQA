@@ -11,7 +11,7 @@ from geopy.geocoders import Nominatim
 from utils.upload_utils import post_texts_with_geo, word_counter, split_into_chunks
 from utils.prompts import NER_LOC_PROMPT
 
-os.environ["OPENAI_API_KEY"] = "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"
+# os.environ["OPENAI_API_KEY"] = "API_KEY"
 
 st.set_page_config(page_title="Upload App", page_icon=":robot:")
 
