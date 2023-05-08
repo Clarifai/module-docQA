@@ -27,7 +27,7 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.llms import OpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain.vectorstores import Chroma, FAISS
 from vector.vectorstore import Clarifai
 
 
@@ -169,7 +169,7 @@ def create_retrieval_qa_chat_chain(split_texts):
     text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     documents = text_splitter.create_documents(split_texts)
     embeddings = OpenAIEmbeddings()
-    vectorstore = Chroma.from_documents(documents, embeddings)
+    vectorstore = FAISS.from_documents(documents, embeddings)
 
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
     retrieval_qa_chat_chain = ConversationalRetrievalChain.from_llm(
