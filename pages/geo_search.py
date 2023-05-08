@@ -1,5 +1,5 @@
 from typing import Dict, List, Union
-
+import os
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -16,6 +16,10 @@ from utils.geo_search_utils import (display_location_info, get_location_data,
                                     search_with_geopoints)
 from utils.prompts import NER_LOC_RADIUS_PROMPT
 
+# Check if API key is in environment variables
+if "OPENAI_API_KEY" not in os.environ:
+    os.environ["OPENAI_API_KEY"] = st.session_state["OPENAI_API_KEY"]
+    
 # os.environ["OPENAI_API_KEY"] = "API_KEY"
 
 # Set Streamlit page configuration

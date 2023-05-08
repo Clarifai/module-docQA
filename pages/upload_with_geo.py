@@ -12,9 +12,14 @@ from utils.prompts import NER_LOC_PROMPT
 from utils.upload_utils import (post_texts_with_geo, split_into_chunks,
                                 word_counter)
 
-# os.environ["OPENAI_API_KEY"] = "API_KEY"
 
 st.set_page_config(page_title="Upload App", page_icon=":robot:")
+
+# Check if API key is in environment variables
+if "OPENAI_API_KEY" not in os.environ:
+    os.environ["OPENAI_API_KEY"] = st.session_state["OPENAI_API_KEY"]
+
+# os.environ["OPENAI_API_KEY"] = "API_KEY"
 
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)

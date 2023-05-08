@@ -7,7 +7,8 @@ st.sidebar.info("Select a page above.")
 
 # Check if API key is in environment variables
 if "OPENAI_API_KEY" not in os.environ:
-    os.environ["OPENAI_API_KEY"] = st.sidebar.text_input("Enter OpenAI API key here")
+    OPENAI_API_KEY = st.sidebar.text_input("Enter OpenAI API key here")
+    st.session_state["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 st.markdown(
     """
