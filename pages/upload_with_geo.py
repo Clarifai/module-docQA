@@ -1,15 +1,16 @@
 """Python file to serve as the frontend"""
-import PyPDF2
 import os
+
+import pandas as pd
+import PyPDF2
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
-import pandas as pd
-from langchain import LLMChain, OpenAI, PromptTemplate
 from geopy.geocoders import Nominatim
-
-from utils.upload_utils import post_texts_with_geo, word_counter, split_into_chunks
+from langchain import LLMChain, OpenAI, PromptTemplate
 from utils.prompts import NER_LOC_PROMPT
+from utils.upload_utils import (post_texts_with_geo, split_into_chunks,
+                                word_counter)
 
 # os.environ["OPENAI_API_KEY"] = "API_KEY"
 
@@ -26,7 +27,9 @@ st.markdown(
 
 geolocator = Nominatim(user_agent="test")
 
-text_chunk_size = st.number_input("Text chunk size", min_value=100, max_value=3000, value=500, step=100)
+text_chunk_size = st.number_input(
+    "Text chunk size", min_value=100, max_value=3000, value=500, step=100
+)
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 
 if uploaded_file:
@@ -47,7 +50,9 @@ if uploaded_file:
         page_text = prev_page_text + current_page_text
 
         # Check if text is smaller the text_chunk_size, if so, add it to the previous page text holder
-        if (word_counter(page_text) < text_chunk_size) and (page_idx != len(reader.pages) - 1):
+        if (word_counter(page_text) < text_chunk_size) and (
+            page_idx != len(reader.pages) - 1
+        ):
             prev_page_text += current_page_text
             continue
         else:
@@ -67,7 +72,9 @@ if uploaded_file:
 
     print("len(text_chunks): ", len(text_chunks))
     print("len(page_number_list): ", len(page_number_list))
-    assert len(text_chunks) == len(page_number_list), "Text chunks and page numbers should be the same length"
+    assert len(text_chunks) == len(
+        page_number_list
+    ), "Text chunks and page numbers should be the same length"
     metadata_list = [
         {
             "source": f"{document_title}",
@@ -109,4 +116,6 @@ if uploaded_file:
             geo_points["lon"] = None
             geo_points_list.append(geo_points)
 
-    post_texts_with_geo(st, stub, userDataObject, text_chunks, metadata_list, geo_points_list)
+    post_texts_with_geo(
+        st, stub, userDataObject, text_chunks, metadata_list, geo_points_list
+    )

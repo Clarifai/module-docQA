@@ -4,13 +4,16 @@ from google.protobuf.json_format import ParseDict
 from stqdm import stqdm
 
 
-def post_texts_with_geo(st, stub, userDataObject, text_list, metadata_list, geo_points_list):
-
+def post_texts_with_geo(
+    st, stub, userDataObject, text_list, metadata_list, geo_points_list
+):
     assert len(text_list) == len(metadata_list)
 
     batch_size = 32
 
-    for chunking_idx in stqdm(range(0, len(text_list), batch_size), desc="Chunking pdf into text inputs"):
+    for chunking_idx in stqdm(
+        range(0, len(text_list), batch_size), desc="Chunking pdf into text inputs"
+    ):
         text_batch = text_list[chunking_idx : chunking_idx + batch_size]
         metadata_batch = metadata_list[chunking_idx : chunking_idx + batch_size]
         geo_points_batch = geo_points_list[chunking_idx : chunking_idx + batch_size]
@@ -32,7 +35,9 @@ def post_texts_with_geo(st, stub, userDataObject, text_list, metadata_list, geo_
             ParseDict(metadata_batch[idx], inp.data.metadata)
             inputs.append(inp)
 
-        post_inputs_request = service_pb2.PostInputsRequest(user_app_id=userDataObject, inputs=inputs)
+        post_inputs_request = service_pb2.PostInputsRequest(
+            user_app_id=userDataObject, inputs=inputs
+        )
 
         post_inputs_response = stub.PostInputs(post_inputs_request)
         # print(response)
@@ -43,10 +48,11 @@ def post_texts_with_geo(st, stub, userDataObject, text_list, metadata_list, geo_
 
 
 def post_texts(st, stub, userDataObject, text_list, metadata_list, geo_points_list):
-
     assert len(text_list) == len(metadata_list)
     batch_size = 32
-    for chunking_idx in stqdm(range(0, len(text_list), batch_size), desc="Chunking pdf into text inputs"):
+    for chunking_idx in stqdm(
+        range(0, len(text_list), batch_size), desc="Chunking pdf into text inputs"
+    ):
         text_batch = text_list[chunking_idx : chunking_idx + batch_size]
         metadata_batch = metadata_list[chunking_idx : chunking_idx + batch_size]
 
@@ -61,7 +67,9 @@ def post_texts(st, stub, userDataObject, text_list, metadata_list, geo_points_li
             ParseDict(metadata_batch[idx], inp.data.metadata)
             inputs.append(inp)
 
-        post_inputs_request = service_pb2.PostInputsRequest(user_app_id=userDataObject, inputs=inputs)
+        post_inputs_request = service_pb2.PostInputsRequest(
+            user_app_id=userDataObject, inputs=inputs
+        )
 
         post_inputs_response = stub.PostInputs(post_inputs_request)
         if post_inputs_response.status.code != status_code_pb2.SUCCESS:

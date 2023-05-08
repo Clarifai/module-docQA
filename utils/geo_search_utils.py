@@ -1,27 +1,25 @@
 import json
 import traceback
 from typing import Any, Dict, List, Optional
+
+import geopy
+import numpy as np
+import pandas as pd
 import requests
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
-import pandas as pd
-import numpy as np
-from grpc import RpcError
-
-
-from langchain import LLMChain, OpenAI, PromptTemplate
-from langchain.chains.summarize import load_summarize_chain
-from langchain.docstore.document import Document
-from geopy.geocoders import Nominatim
-import geopy
-
 ## Import in the Clarifai gRPC based objects needed
 from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
-from clarifai_grpc.grpc.api.status import status_pb2, status_code_pb2
-from clarifai_grpc.grpc.api.service_pb2 import GetInputCountRequest, StreamInputsRequest
-
+from clarifai_grpc.grpc.api.service_pb2 import (GetInputCountRequest,
+                                                StreamInputsRequest)
+from clarifai_grpc.grpc.api.status import status_code_pb2, status_pb2
+from geopy.geocoders import Nominatim
+from grpc import RpcError
+from langchain import LLMChain, OpenAI, PromptTemplate
+from langchain.chains.summarize import load_summarize_chain
+from langchain.docstore.document import Document
 
 geolocator = Nominatim(user_agent="test")
 

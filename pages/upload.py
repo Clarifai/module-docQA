@@ -1,11 +1,10 @@
 """Python file to serve as the frontend"""
+import pandas as pd
 import PyPDF2
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
-import pandas as pd
-
-from utils.upload_utils import post_texts, word_counter, split_into_chunks
+from utils.upload_utils import post_texts, split_into_chunks, word_counter
 
 st.set_page_config(page_title="Upload App", page_icon=":robot:")
 
@@ -19,7 +18,9 @@ st.markdown(
 )
 
 
-text_chunk_size = st.number_input("Text chunk size", min_value=100, max_value=3000, value=500, step=100)
+text_chunk_size = st.number_input(
+    "Text chunk size", min_value=100, max_value=3000, value=500, step=100
+)
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 
 if uploaded_file:
@@ -43,7 +44,9 @@ if uploaded_file:
         page_text = prev_page_text + current_page_text
 
         # Check if text is smaller the text_chunk_size, if so, add it to the previous page text holder
-        if (word_counter(page_text) < text_chunk_size) and (page_idx != len(reader.pages) - 1):
+        if (word_counter(page_text) < text_chunk_size) and (
+            page_idx != len(reader.pages) - 1
+        ):
             prev_page_text += current_page_text
             continue
         else:
@@ -63,7 +66,9 @@ if uploaded_file:
 
     print("len(text_chunks): ", len(text_chunks))
     print("len(page_number_list): ", len(page_number_list))
-    assert len(text_chunks) == len(page_number_list), "Text chunks and page numbers should be the same length"
+    assert len(text_chunks) == len(
+        page_number_list
+    ), "Text chunks and page numbers should be the same length"
     metadata_list = [
         {
             "source": f"{document_title}",
