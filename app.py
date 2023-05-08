@@ -1,8 +1,13 @@
 import streamlit as st
+import os
 
 st.set_page_config(layout="wide", page_icon="https://clarifai.com/favicon.svg")
 
 st.sidebar.info("Select a page above.")
+
+# Check if API key is in environment variables
+if "OPENAI_API_KEY" not in os.environ:
+    os.environ["OPENAI_API_KEY"] = st.sidebar.text_input("Enter OpenAI API key here")
 
 st.markdown(
     """
