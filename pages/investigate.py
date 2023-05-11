@@ -9,7 +9,7 @@ from clarifai.client import create_stub
 from streamlit_chat import message
 from utils.investigate_utils import (combine_dicts,
                                      create_retrieval_qa_chat_chain,
-                                     get_clarifai_docsearch,
+                                     get_clarifai_docsearch, get_full_text,
                                      get_search_query_text,
                                      get_summarization_output,
                                      load_custom_llm_chain,
@@ -37,7 +37,6 @@ if "search_input_df" not in st.session_state:
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
-
 
 # def load_custom_qa_with_sources():
 #     refine_template = (
@@ -147,40 +146,20 @@ if user_input:
             columns[idx].json(entity_list)
 
         doc_selection = st.selectbox(
-            "Select search result to visualize",
+            "Select search result to investigate",
             [idx if idx != 0 else "-" for idx in range(len(docs) + 1)],
             index=0,
         )
 
         highlighted_text_list = []
         if doc_selection and doc_selection != "-":
-            # # Create color dict for each entity type
-            # color_dict = {}
-            # for idx, entity_type in enumerate(combined_entities.keys()):
-            #     color_dict[entity_type] = f"hsl({360 * idx / len(combined_entities)}, 80%, 80%)"
-
-            # # Create highlighted text list
-            # for entity, entity_list in combined_entities.items():
-            #     for word in docs[doc_selection].page_content.split():
-            #         for idx_2, entity_ in enumerate(entity_list):
-            #             if word in entity_:
-            #                 highlighted_text_list.append((entity_list[idx_2], entity, color_dict[entity]))
-            #         else:
-            #             highlighted_text_list.append(
-            #                 (
-            #                     word,
-            #                     "",
-            #                     "#fff",
-            #                 )
-            #             )
-
-            # annotated_text(*highlighted_text_list)
-
             doc_selection = int(doc_selection) - 1
             st.markdown(f"### {docs[doc_selection].metadata['source']}")
 
             if st.button("Summarize"):
-                st.write(get_summarization_output(docs, doc_selection))
+                full_text = get_full_text(docs, doc_selection)
+                st.session_state.full_text = full_text
+                st.write(get_summarization_output(docs, doc_selection, full_text))
 
             if not st.session_state.search_input_df.empty:
                 st.dataframe(st.session_state.search_input_df)
@@ -238,22 +217,25 @@ if user_input:
     else:
         st.warning("Found no documents related to your query.")
 
-# connection_prompt = """Using the named entity recognition (NER) annotations for the set of texts, identify any connections or commonalities between the texts. Consider how the entities mentioned in each text relate to each other, and whether any patterns emerge across the set. In particular, look for similarities or differences in the types of entities mentioned, and consider how these may be relevant to the themes or topics covered in the texts.
 
-# Here are the annotations:
-# {output_1}
-# """
-# connection_output = chain(
-#     {"input_documents": docs, "question": connection_prompt}, return_only_outputs=True
-# )
-# output_2 = connection_output["output_text"]
+# # Create color dict for each entity type
+# color_dict = {}
+# for idx, entity_type in enumerate(combined_entities.keys()):
+#     color_dict[entity_type] = f"hsl({360 * idx / len(combined_entities)}, 80%, 80%)"
 
-# st.session_state.pastcl.append(user_input)
-# st.session_state.generatedcl.append(output_1)
+# # Create highlighted text list
+# for entity, entity_list in combined_entities.items():
+#     for word in docs[doc_selection].page_content.split():
+#         for idx_2, entity_ in enumerate(entity_list):
+#             if word in entity_:
+#                 highlighted_text_list.append((entity_list[idx_2], entity, color_dict[entity]))
+#         else:
+#             highlighted_text_list.append(
+#                 (
+#                     word,
+#                     "",
+#                     "#fff",
+#                 )
+#             )
 
-# # st.session_state.pastcl.append(user_input)
-# # st.session_state.generatedcl.append(output_2)
-# if st.session_state["generatedcl"]:
-#     for i in range(len(st.session_state["generatedcl"]) - 1, -1, -1):
-#         message(st.session_state["generatedcl"][i], key=str(i) + "cl")
-#         message(st.session_state["pastcl"][i], is_user=True, key=str(i) + "_usercl")
+# annotated_text(*highlighted_text_list)

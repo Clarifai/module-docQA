@@ -187,7 +187,8 @@ def create_retrieval_qa_chat_chain(split_texts):
 
 
 # Function that gets the texts and stitches them to create a full text from Clarifai app
-def get_full_text(docs, doc_selection):
+@st.cache_data
+def get_full_text(_docs, doc_selection):
     auth = ClarifaiAuthHelper.from_streamlit(st)
     stub = create_stub(auth)
     userDataObject = auth.get_user_app_id_proto()
@@ -196,7 +197,7 @@ def get_full_text(docs, doc_selection):
         stub,
         userDataObject,
         search_metadata_key="source",
-        search_metadata_value=docs[doc_selection].metadata["source"],
+        search_metadata_value=_docs[doc_selection].metadata["source"],
     )
     search_input_df = pd.DataFrame(
         process_post_searches_response(post_searches_response)
@@ -210,11 +211,7 @@ def get_full_text(docs, doc_selection):
 
 # Function that gets summarization output using LLM chain
 @st.cache_data
-def get_summarization_output(_docs, doc_selection):
-    full_text = get_full_text(_docs, doc_selection)
-
-    # store full text in session state
-    st.session_state.full_text = full_text
+def get_summarization_output(_docs, doc_selection, full_text):
     llm = OpenAI(temperature=0, max_tokens=1024)
     summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
     summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
