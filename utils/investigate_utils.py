@@ -204,9 +204,9 @@ def get_full_text(_docs, doc_selection):
     )
     search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
     search_input_df.reset_index(drop=True, inplace=True)
-    st.session_state.search_input_df = search_input_df
+    # st.session_state.search_input_df = search_input_df
     full_text = "\n".join(search_input_df.text.to_list())
-    return full_text
+    return full_text, search_input_df
 
 
 # Function that gets summarization output using LLM chain
