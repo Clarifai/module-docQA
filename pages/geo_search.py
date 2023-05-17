@@ -51,8 +51,6 @@ if task_query:
     chain_output_json = llm_output_to_json(chain_output["text"])
     location_obj = get_location_data(chain_output_json["LOC"])
 
-    print(chain_output_json)
-
     # If location object is found, display address, latitude, longitude, and radius
     if location_obj is not None:
         display_location_info(location_obj, chain_output_json["RADIUS"])
@@ -68,6 +66,7 @@ if task_query:
         location_obj.latitude,
         float(chain_output_json["RADIUS"]),
     )
+    
     # Process post search response into a dictionary list
     input_dict_list = process_post_searches_response(post_searches_response)
     # Convert dictionary list to pandas DataFrame

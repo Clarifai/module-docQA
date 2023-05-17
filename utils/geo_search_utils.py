@@ -21,7 +21,7 @@ from langchain import LLMChain, OpenAI, PromptTemplate
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 
-geolocator = Nominatim(user_agent="test")
+geolocator = Nominatim(user_agent="geoint")
 
 
 # Create function that searches with a given longitude and latitude
@@ -61,7 +61,7 @@ def search_with_geopoints(
 
         if post_searches_response.status.code != status_code_pb2.SUCCESS:
             print(post_searches_response)
-            raise Exception(
+            st.error(
                 "Post searches failed, status: "
                 + post_searches_response.status.description
             )
@@ -152,10 +152,10 @@ def get_location_data(location_str: str) -> Optional[geopy.Location]:
     Returns the geolocation object for the given location string.
     """
     try:
-        location_obj = geolocator.geocode(location_str)
+        location_obj = geolocator.geocode(location_str, timeout=None)
         return location_obj
     except Exception as e:
-        print(f"Error: {e}")
+        st.error(f"Error: {e}")
         return None
 
 
