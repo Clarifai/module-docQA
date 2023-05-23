@@ -104,26 +104,30 @@ if uploaded_file:
     llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
 
     geo_points_list = []
-    for idx, text_chunk in enumerate(text_chunks):
-        chat_output = llm_chain(text_chunk)
-        st.write(chat_output["text"])
+    with st.expander("Show Locations Found"):
+        for idx, text_chunk in enumerate(text_chunks):
+            chat_output = llm_chain(text_chunk)
+            st.write(chat_output["text"])
 
-        try:
-            geo_points = {}
-            location = geolocator.geocode(chat_output["text"])
-            st.info(f"{location.address} {location.latitude, location.longitude}")
-            geo_points["lat"] = location.latitude
-            geo_points["lon"] = location.longitude
-            geo_points_list.append(geo_points)
-            metadata_list[idx]["location"] = str(location.address)
+            try:
+                geo_points = {}
+                location = geolocator.geocode(chat_output["text"], timeout=None)
+                st.info(f"{location.address} {location.latitude, location.longitude}")
+                geo_points["lat"] = location.latitude
+                geo_points["lon"] = location.longitude
+                geo_points_list.append(geo_points)
+                metadata_list[idx]["location"] = str(location.address)
 
-        except AttributeError:
-            st.warning("No location found")
-            geo_points = {}
-            geo_points["lat"] = None
-            geo_points["lon"] = None
-            geo_points_list.append(geo_points)
+            except AttributeError:
+                st.warning("No location found")
+                geo_points = {}
+                geo_points["lat"] = None
+                geo_points["lon"] = None
+                geo_points_list.append(geo_points)
 
     post_texts_with_geo(
         st, stub, userDataObject, text_chunks, metadata_list, geo_points_list
     )
+    st.success("Done!")
+    st.balloons()
+    
