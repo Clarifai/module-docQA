@@ -149,7 +149,7 @@ class Clarifai(VectorStore):
                         )
                     )
                 ],
-                pagination=service_pb2.Pagination(page=1, per_page=4),
+                pagination=service_pb2.Pagination(page=1, per_page=8),
             )
         )
 
