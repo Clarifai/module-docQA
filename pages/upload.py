@@ -20,7 +20,7 @@ st.markdown(
 
 
 text_chunk_size = st.number_input(
-    "Text chunk size", min_value=100, max_value=3000, value=500, step=100
+    "Text chunk size", min_value=100, max_value=3000, value=300, step=100
 )
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 

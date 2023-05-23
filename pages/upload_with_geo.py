@@ -29,6 +29,7 @@ if "OPENAI_API_KEY" not in os.environ:
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
         placeholder.empty()
 
+
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
@@ -41,7 +42,7 @@ st.markdown(
 geolocator = Nominatim(user_agent="test")
 
 text_chunk_size = st.number_input(
-    "Text chunk size", min_value=100, max_value=3000, value=500, step=100
+    "Text chunk size", min_value=100, max_value=3000, value=300, step=100
 )
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 
