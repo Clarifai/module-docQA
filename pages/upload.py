@@ -4,6 +4,7 @@ import PyPDF2
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
+
 from utils.upload_utils import post_texts, split_into_chunks, word_counter
 
 st.set_page_config(page_title="Upload App", page_icon=":robot:")

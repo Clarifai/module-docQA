@@ -1,18 +1,14 @@
 """Python file to serve as the frontend"""
 from __future__ import annotations
+
 import os
+
 import pandas as pd
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
-
-st.set_page_config(
-    page_title="GEOINT NER Investigation",
-    page_icon="https://clarifai.com/favicon.svg",
-    layout="wide",
-)
-
 from streamlit_chat import message
+
 from utils.investigate_utils import (combine_dicts,
                                      create_retrieval_qa_chat_chain,
                                      get_clarifai_docsearch, get_full_text,
@@ -22,13 +18,23 @@ from utils.investigate_utils import (combine_dicts,
                                      parallel_process_input)
 from utils.prompts import NER_PROMPT
 
+st.set_page_config(
+    page_title="GEOINT NER Investigation",
+    page_icon="https://clarifai.com/favicon.svg",
+    layout="wide",
+)
 
 # Check if API key is in environment variables
 if "OPENAI_API_KEY" not in os.environ:
     placeholder = st.empty()
-    OPENAI_API_KEY = placeholder.text_input("Enter OpenAI API key here", placeholder="OpenAI API key", type='password', key='api_key')
+    OPENAI_API_KEY = placeholder.text_input(
+        "Enter OpenAI API key here",
+        placeholder="OpenAI API key",
+        type="password",
+        key="api_key",
+    )
 
-    if OPENAI_API_KEY!="":
+    if OPENAI_API_KEY != "":
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
         placeholder.empty()
 

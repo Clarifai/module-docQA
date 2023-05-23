@@ -5,10 +5,10 @@ import traceback
 import uuid
 from typing import Any, Dict, Iterable, List, Optional
 
+import streamlit as st
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStore
-import streamlit as st
 
 
 class Clarifai(VectorStore):
@@ -40,7 +40,8 @@ class Clarifai(VectorStore):
             pass
         except ImportError:
             raise ValueError(
-                "Could not import clarifai python package. " "Please install it with `pip install clarifai`."
+                "Could not import clarifai python package. "
+                "Please install it with `pip install clarifai`."
             )
 
         if pat is None:
@@ -51,13 +52,15 @@ class Clarifai(VectorStore):
                 )
             pat = os.environ["CLARIFAI_PAT"]
 
-        from clarifai.auth.helper import ClarifaiAuthHelper, DEFAULT_BASE
+        from clarifai.auth.helper import DEFAULT_BASE, ClarifaiAuthHelper
         from clarifai.client import create_stub
 
         if api_base is None:
             api_base = DEFAULT_BASE
 
-        auth = ClarifaiAuthHelper(user_id=user_id, app_id=app_id, pat=pat, base=api_base)
+        auth = ClarifaiAuthHelper(
+            user_id=user_id, app_id=app_id, pat=pat, base=api_base
+        )
         stub = create_stub(auth)
         userDataObject = auth.get_user_app_id_proto()
 
@@ -100,7 +103,9 @@ class Clarifai(VectorStore):
         embeddings = None
         if self._embedding_function is not None:
             embeddings = self._embedding_function.embed_documents(list(texts))
-        self._collection.add(metadatas=metadatas, embeddings=embeddings, documents=texts, ids=ids)
+        self._collection.add(
+            metadatas=metadatas, embeddings=embeddings, documents=texts, ids=ids
+        )
         return ids
 
     def similarity_search(
@@ -120,10 +125,10 @@ class Clarifai(VectorStore):
         Returns:
             List[Document]: List of documents most simmilar to the query text.
         """
+        import requests
         from clarifai_grpc.grpc.api import resources_pb2, service_pb2
         from clarifai_grpc.grpc.api.status import status_code_pb2
         from google.protobuf import json_format
-        import requests
 
         # traceback.print_stack()
         post_annotations_searches_response = self._stub.PostAnnotationsSearches(
@@ -158,7 +163,8 @@ class Clarifai(VectorStore):
             #     json_format.MessageToJson(
             #         post_annotations_searches_response, preserving_proto_field_name=True))
             raise Exception(
-                "Post searches failed, status: " + post_annotations_searches_response.status.description
+                "Post searches failed, status: "
+                + post_annotations_searches_response.status.description
             )
 
         hits = post_annotations_searches_response.hits
@@ -184,12 +190,22 @@ class Clarifai(VectorStore):
                 page_number = "NA"
             print(
                 "\tScore %.2f for annotation: %s off input: %s, source: %s, text: %s"
-                % (hit.score, hit.annotation.id, hit.input.id, source, requested_text[:125])
+                % (
+                    hit.score,
+                    hit.annotation.id,
+                    hit.input.id,
+                    source,
+                    requested_text[:125],
+                )
             )
             docs.append(
                 Document(
                     page_content=requested_text,
-                    metadata={"source": f"{source}", "page": {page_number}, "score": hit.score},
+                    metadata={
+                        "source": f"{source}",
+                        "page": {page_number},
+                        "score": hit.score,
+                    },
                 )
             )
 
@@ -208,7 +224,10 @@ class Clarifai(VectorStore):
         """
         raise NotImplementedError("This does not apply to Clarifai")
         if self._persist_directory is None:
-            raise ValueError("You must specify a persist_directory on" "creation to persist the collection.")
+            raise ValueError(
+                "You must specify a persist_directory on"
+                "creation to persist the collection."
+            )
         self._client.persist()
 
     @classmethod

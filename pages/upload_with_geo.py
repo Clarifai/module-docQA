@@ -8,19 +8,24 @@ from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from geopy.geocoders import Nominatim
 from langchain import LLMChain, OpenAI, PromptTemplate
+
 from utils.prompts import NER_LOC_PROMPT
 from utils.upload_utils import (post_texts_with_geo, split_into_chunks,
                                 word_counter)
-
 
 st.set_page_config(page_title="Upload App", page_icon=":robot:")
 
 # Check if API key is in environment variables
 if "OPENAI_API_KEY" not in os.environ:
     placeholder = st.empty()
-    OPENAI_API_KEY = placeholder.text_input("Enter OpenAI API key here", placeholder="OpenAI API key", type='password', key='api_key')
+    OPENAI_API_KEY = placeholder.text_input(
+        "Enter OpenAI API key here",
+        placeholder="OpenAI API key",
+        type="password",
+        key="api_key",
+    )
 
-    if OPENAI_API_KEY!="":
+    if OPENAI_API_KEY != "":
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
         placeholder.empty()
 
@@ -130,4 +135,3 @@ if uploaded_file:
     )
     st.success("Done!")
     st.balloons()
-    

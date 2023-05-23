@@ -1,10 +1,11 @@
 import concurrent.futures
 import json
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
-import os
+
 import numpy as np
 import pandas as pd
 import requests
@@ -27,7 +28,8 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.llms import OpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import Chroma, FAISS
+from langchain.vectorstores import FAISS, Chroma
+
 from vector.vectorstore import Clarifai
 
 
