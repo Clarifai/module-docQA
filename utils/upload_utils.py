@@ -82,15 +82,24 @@ def word_counter(text):
     return len(text.split())
 
 
-def split_into_chunks(s, text_chunk_size):
-    words = s.split()
+def split_into_chunks(string, text_chunk_size):
+    words = string.split()
     chunks = []
     chunk = ""
+    
+    # Split into chunks
     for idx, word in enumerate(words):
         if idx % text_chunk_size == 0 and idx > 0:
             chunks.append(chunk.strip())
             chunk = ""
         chunk += word + " "
-    if chunk:
+    
+    # Add last chunk to list by concatenating with last chunk in the list
+    if chunk and len(chunks) > 0:
+        chunks[-1] += chunk.strip()
+        # chunks.append(chunk.strip())
+        
+    # If there's only one chunk, return list with one chunk
+    elif chunk:
         chunks.append(chunk.strip())
     return chunks
