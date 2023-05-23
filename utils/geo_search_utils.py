@@ -152,7 +152,7 @@ def get_location_data(location_str: str) -> Optional[geopy.Location]:
     Returns the geolocation object for the given location string.
     """
     try:
-        location_obj = geolocator.geocode(location_str, timeout=None)
+        location_obj = geolocator.geocode(location_str, language="en", timeout=None)
         return location_obj
     except Exception as e:
         st.error(f"Error: {e}")
