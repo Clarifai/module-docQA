@@ -24,6 +24,13 @@ text_chunk_size = st.number_input(
 )
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 
+
+def visitor_body(text, cm, tm, fontDict, fontSize):
+    y = tm[5]
+    if y > 50 and y < 770:
+        parts.append(text)
+
+
 if uploaded_file:
     reader = PyPDF2.PdfReader(uploaded_file)
     try:
@@ -36,12 +43,9 @@ if uploaded_file:
     page_chunk_number_list = []
     prev_page_text = ""
     for page_idx, page in enumerate(reader.pages):
-        print("default page_idx: ", page_idx)
-
-        # if page_idx == 6:
-        #     break
-
-        current_page_text = page.extract_text()
+        parts = []
+        page.extract_text(visitor_text=visitor_body)
+        current_page_text = "".join(parts)
         page_text = prev_page_text + current_page_text
 
         # Check if text is smaller the text_chunk_size, if so, add it to the previous page text holder
@@ -53,7 +57,6 @@ if uploaded_file:
         else:
             prev_page_text = ""
 
-        print(page_text)
         page_text_chunks = split_into_chunks(page_text, text_chunk_size)
         text_chunks.extend(page_text_chunks)
         page_number_list.extend([page_idx] * len(page_text_chunks))
@@ -79,8 +82,6 @@ if uploaded_file:
         }
         for idx in range(len(text_chunks))
     ]
-    print(text_chunks[-1])
-    print(metadata_list[-1])
 
     metadata_df = pd.DataFrame(metadata_list)
     metadata_sorted_df = metadata_df.sort_values(["page_number", "page_chunk_number"])

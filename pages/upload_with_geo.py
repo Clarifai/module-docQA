@@ -29,7 +29,6 @@ if "OPENAI_API_KEY" not in os.environ:
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
         placeholder.empty()
 
-
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
@@ -46,7 +45,14 @@ text_chunk_size = st.number_input(
 )
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf", key="qapdf")
 
-if uploaded_file:
+
+def visitor_body(text, cm, tm, fontDict, fontSize):
+    y = tm[5]
+    if y > 50 and y < 770:
+        parts.append(text)
+
+
+if uploaded_file and "OPENAI_API_KEY" in os.environ:
     reader = PyPDF2.PdfReader(uploaded_file)
     try:
         document_title = reader.metadata.title.split(".")[0]
@@ -58,9 +64,9 @@ if uploaded_file:
     page_chunk_number_list = []
     prev_page_text = ""
     for page_idx, page in enumerate(reader.pages):
-        print("default page_idx: ", page_idx)
-
-        current_page_text = page.extract_text()
+        parts = []
+        page.extract_text(visitor_text=visitor_body)
+        current_page_text = "".join(parts)
         page_text = prev_page_text + current_page_text
 
         # Check if text is smaller the text_chunk_size, if so, add it to the previous page text holder
@@ -68,11 +74,10 @@ if uploaded_file:
             page_idx != len(reader.pages) - 1
         ):
             prev_page_text += current_page_text
-            continue
+            continue      
         else:
             prev_page_text = ""
 
-        print(page_text)
         page_text_chunks = split_into_chunks(page_text, text_chunk_size)
         text_chunks.extend(page_text_chunks)
         page_number_list.extend([page_idx] * len(page_text_chunks))
@@ -89,6 +94,7 @@ if uploaded_file:
     assert len(text_chunks) == len(
         page_number_list
     ), "Text chunks and page numbers should be the same length"
+    
     metadata_list = [
         {
             "source": f"{document_title}",
@@ -98,8 +104,6 @@ if uploaded_file:
         }
         for idx in range(len(text_chunks))
     ]
-    print(text_chunks[-1])
-    print(metadata_list[-1])
 
     metadata_df = pd.DataFrame(metadata_list)
     metadata_sorted_df = metadata_df.sort_values(["page_number", "page_chunk_number"])
@@ -117,7 +121,7 @@ if uploaded_file:
 
             try:
                 geo_points = {}
-                location = geolocator.geocode(chat_output["text"], timeout=None)
+                location = geolocator.geocode(chat_output["text"], language="en", timeout=None)
                 st.info(f"{location.address} {location.latitude, location.longitude}")
                 geo_points["lat"] = location.latitude
                 geo_points["lon"] = location.longitude
