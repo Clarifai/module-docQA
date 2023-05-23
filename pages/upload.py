@@ -87,3 +87,5 @@ if uploaded_file:
     st.dataframe(metadata_sorted_df)
 
     post_texts(st, stub, userDataObject, text_chunks, metadata_list)
+    st.success("Done!")
+    st.balloons()
