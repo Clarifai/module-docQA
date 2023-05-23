@@ -85,4 +85,4 @@ if uploaded_file:
     metadata_sorted_df = metadata_df.sort_values(["page_number", "page_chunk_number"])
     st.dataframe(metadata_sorted_df)
 
-    # post_texts(st, stub, userDataObject, text_chunks, metadata_list)
+    post_texts(st, stub, userDataObject, text_chunks, metadata_list)

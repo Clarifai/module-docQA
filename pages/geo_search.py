@@ -1,9 +1,18 @@
+import streamlit as st
+
+# Set Streamlit page configuration
+st.set_page_config(
+    page_title="GEOINT NER Investigation",
+    page_icon="https://clarifai.com/favicon.svg",
+    layout="wide",
+)
 from typing import Dict, List, Union
 import os
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import streamlit as st
+
+
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from langchain import LLMChain, OpenAI, PromptTemplate
@@ -16,18 +25,16 @@ from utils.geo_search_utils import (display_location_info, get_location_data,
                                     search_with_geopoints)
 from utils.prompts import NER_LOC_RADIUS_PROMPT
 
+
 # Check if API key is in environment variables
 if "OPENAI_API_KEY" not in os.environ:
-    os.environ["OPENAI_API_KEY"] = st.session_state["OPENAI_API_KEY"]
-    
-# os.environ["OPENAI_API_KEY"] = "API_KEY"
+    placeholder = st.empty()
+    OPENAI_API_KEY = placeholder.text_input("Enter OpenAI API key here", placeholder="OpenAI API key", type='password', key='api_key')
 
-# Set Streamlit page configuration
-st.set_page_config(
-    page_title="GEOINT NER Investigation",
-    page_icon="https://clarifai.com/favicon.svg",
-    layout="wide",
-)
+    if OPENAI_API_KEY!="":
+        os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+        placeholder.empty()
+        
 
 # Authenticate user and get stub for Clarifai API
 auth = ClarifaiAuthHelper.from_streamlit(st)

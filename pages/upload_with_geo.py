@@ -17,9 +17,12 @@ st.set_page_config(page_title="Upload App", page_icon=":robot:")
 
 # Check if API key is in environment variables
 if "OPENAI_API_KEY" not in os.environ:
-    os.environ["OPENAI_API_KEY"] = st.session_state["OPENAI_API_KEY"]
+    placeholder = st.empty()
+    OPENAI_API_KEY = placeholder.text_input("Enter OpenAI API key here", placeholder="OpenAI API key", type='password', key='api_key')
 
-# os.environ["OPENAI_API_KEY"] = "API_KEY"
+    if OPENAI_API_KEY!="":
+        os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+        placeholder.empty()
 
 auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)

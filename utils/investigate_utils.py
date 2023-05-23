@@ -31,11 +31,6 @@ from langchain.vectorstores import Chroma, FAISS
 from vector.vectorstore import Clarifai
 
 
-# Check if API key is in environment variables
-if "OPENAI_API_KEY" not in os.environ:
-    os.environ["OPENAI_API_KEY"] = st.session_state["OPENAI_API_KEY"]
-
-
 def get_search_query_text():
     input_text = st.text_input(
         "Search Query: ",
