@@ -166,7 +166,7 @@ def load_custom_llm_chain(prompt_template, model_name):
     return llm_chain
 
 
-@st.cache_resource
+# @st.cache_resource
 def create_retrieval_qa_chat_chain(split_texts):
     text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     documents = text_splitter.create_documents(split_texts)

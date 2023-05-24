@@ -147,7 +147,7 @@ if user_input:
 
                         user_input = get_question_text()
 
-                        if user_input:
+                        if user_input:                            
                             output = retrieval_qa_chat_chain.run(user_input)
                             st.session_state.pastcl2.append(user_input)
                             st.session_state.generatedcl2.append(output)
