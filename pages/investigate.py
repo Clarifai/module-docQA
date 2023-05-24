@@ -50,62 +50,12 @@ auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
 
-# def load_custom_qa_with_sources():
-#     refine_template = (
-#         "The original question is as follows: {question}\n"
-#         "We have provided an existing answer: {existing_answer}\n"
-#         "Do not remove any entities or sources from the existing answer.\n"
-#         "We have the opportunity to update the list of named entities and sources\n"
-#         "(only if needed) using the context below delimited by triple backticks.\n"
-#         "Make sure any entities extracted are part of the context below. If not, do not add them to the list.\n"
-#         "If you see any entities that are not extracted, add them.\n"
-#         "The new source can be extracted at the end of the context after 'Source: '.\n"
-#         "Use only the context below.\n"
-#         "------------\n"
-#         "{context_str}\n"
-#         "------------\n"
-#         "Given the new context, update the original answer to extract additional entities and sources.\n"
-#         "Create a more accurate list of named entities and sources.\n"
-#         "If you do update it, please update the sources as well while keeping the existing sources.\n"
-#         "If the context isn't useful, return the existing answer in JSON format unchanged.\n"
-#         "Output in JSON format:"
-#     )
-#     refine_prompt = PromptTemplate(
-#         input_variables=["question", "existing_answer", "context_str"],
-#         template=refine_template,
-#     )
-
-#     question_template = (
-#         "Context information is below. \n"
-#         "---------------------\n"
-#         "{context_str}"
-#         "\n---------------------\n"
-#         "Given the context information and not prior knowledge, "
-#         "answer the question: {question}\n"
-#         "Output in JSON format:"
-#     )
-#     question_prompt = PromptTemplate(
-#         input_variables=["context_str", "question"], template=question_template
-#     )
-
-#     chain = load_qa_with_sources_chain(
-#         OpenAI(
-#             temperature=0, max_tokens=-1
-#         ),  # model_name="gpt-3.5-turbo",  max_tokens=2000
-#         chain_type="refine",
-#         return_intermediate_steps=True,
-#         question_prompt=question_prompt,
-#         refine_prompt=refine_prompt,
-#     )
-#     return chain
-
-
 st.markdown(
     "This will let you ask questions about the text content in your app. Make sure it's indexed with the Language-Understanding base workflow. Instead of using OpenAI embeddings we use that base workflow embeddings AND our own vector search from our API! This will collect a shortlist of the docs and then try to summarize the shortlist into one cohesive paragraph. So it's succesptible to combining lots of unrelated information that is retrieved. "
 )
 
 user_input = get_search_query_text()
-
+ 
 if user_input:
     docs = get_clarifai_docsearch(user_input)
 
@@ -125,17 +75,6 @@ if user_input:
         llm_chain = load_custom_llm_chain(
             prompt_template=NER_PROMPT, model_name="gpt-3.5-turbo"
         )
-
-        # # Measure execution time
-        # start = time.time()
-        # entities_list = []
-        # for input in input_list:
-        #     chat_output = llm_chatgpt(NER_PROMPT.replace("{page_content}", input["page_content"]))
-        #     entities = extract_entities(chat_output)
-        #     entities["SOURCES"] = [input["source"]]
-        #     entities_list.append(entities)
-        # end = time.time()
-        # print(f"Time taken: {end - start}")
 
         # Measure execution time
         entities_list = parallel_process_input(llm_chain, input_list)
@@ -198,7 +137,7 @@ if user_input:
                         if "pastcl2" not in st.session_state:
                             st.session_state["pastcl2"] = []
 
-                        def get_search_query_text():
+                        def get_question_text():
                             input_text = st.text_input(
                                 "You: ",
                                 placeholder=f"Hello, what questions do you have about content in this app?",
@@ -206,7 +145,7 @@ if user_input:
                             )
                             return input_text
 
-                        user_input = get_search_query_text()
+                        user_input = get_question_text()
 
                         if user_input:
                             output = retrieval_qa_chat_chain.run(user_input)
@@ -230,25 +169,3 @@ if user_input:
     else:
         st.warning("Found no documents related to your query.")
 
-
-# # Create color dict for each entity type
-# color_dict = {}
-# for idx, entity_type in enumerate(combined_entities.keys()):
-#     color_dict[entity_type] = f"hsl({360 * idx / len(combined_entities)}, 80%, 80%)"
-
-# # Create highlighted text list
-# for entity, entity_list in combined_entities.items():
-#     for word in docs[doc_selection].page_content.split():
-#         for idx_2, entity_ in enumerate(entity_list):
-#             if word in entity_:
-#                 highlighted_text_list.append((entity_list[idx_2], entity, color_dict[entity]))
-#         else:
-#             highlighted_text_list.append(
-#                 (
-#                     word,
-#                     "",
-#                     "#fff",
-#                 )
-#             )
-
-# annotated_text(*highlighted_text_list)

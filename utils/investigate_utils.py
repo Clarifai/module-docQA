@@ -173,7 +173,7 @@ def create_retrieval_qa_chat_chain(split_texts):
     embeddings = OpenAIEmbeddings()
     vectorstore = FAISS.from_documents(documents, embeddings)
 
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=False)
     retrieval_qa_chat_chain = ConversationalRetrievalChain.from_llm(
         OpenAI(temperature=0),
         vectorstore.as_retriever(),
