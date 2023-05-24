@@ -4,8 +4,6 @@ import streamlit as st
 
 st.set_page_config(layout="wide", page_icon="https://clarifai.com/favicon.svg")
 
-st.sidebar.info("Select a page above.")
-
 st.markdown(
     """
     **Helper module that allows you to upload and explore large amount of texts**
