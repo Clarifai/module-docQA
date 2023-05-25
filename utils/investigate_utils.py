@@ -184,12 +184,11 @@ def create_retrieval_qa_chat_chain(split_texts):
 
 
 # Function that gets the texts and stitches them to create a full text from Clarifai app
-@st.cache_data
 def get_full_text(_docs, doc_selection):
     auth = ClarifaiAuthHelper.from_streamlit(st)
     stub = create_stub(auth)
     userDataObject = auth.get_user_app_id_proto()
-
+    print("Searching for: %s" % _docs[doc_selection].metadata["source"])
     post_searches_response = search_with_metadata(
         stub,
         userDataObject,
