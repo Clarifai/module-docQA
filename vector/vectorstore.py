@@ -33,6 +33,7 @@ class Clarifai(VectorStore):
         user_id: str,
         app_id: str,
         pat: Optional[str] = None,
+        number_of_docs:int = 4, 
         api_base: Optional[str] = None,
     ) -> None:
         """Initialize with Clarifai client."""
@@ -67,18 +68,7 @@ class Clarifai(VectorStore):
         self._stub = stub
         self._auth = auth
         self._userDataObject = userDataObject
-
-        # # Check if the collection exists, create it if not
-        # if collection_name in [col.name for col in self._client.list_collections()]:
-        #     self._collection = self._client.get_collection(name=collection_name)
-        # else:
-        #     # create app in the user_id account.
-        #     self._collection = self._client.create_collection(
-        #         name=collection_name,
-        #         embedding_function=self._embedding_function.embed_documents
-        #         if self._embedding_function is not None
-        #         else None,
-        #     )
+        self._number_of_docs = number_of_docs
 
     def add_texts(
         self,
@@ -149,7 +139,7 @@ class Clarifai(VectorStore):
                         )
                     )
                 ],
-                pagination=service_pb2.Pagination(page=1, per_page=8),
+                pagination=service_pb2.Pagination(page=1, per_page=self._number_of_docs),
             )
         )
 

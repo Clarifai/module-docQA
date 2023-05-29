@@ -55,9 +55,10 @@ st.markdown(
 )
 
 user_input = get_search_query_text()
- 
+number_of_docs = st.selectbox("Select number of documents to return", options = [4, 6, 8, 10, 12], index = 2)
+
 if user_input:
-    docs = get_clarifai_docsearch(user_input)
+    docs = get_clarifai_docsearch(user_input, number_of_docs)
 
     with st.expander(f"{len(docs)} Docs answering from:"):
         for idx, doc in enumerate(docs):

@@ -143,13 +143,13 @@ def process_post_searches_response(post_searches_response):
 
 
 @st.cache_data
-def get_clarifai_docsearch(user_input):
+def get_clarifai_docsearch(user_input, number_of_docs):
     auth = ClarifaiAuthHelper.from_streamlit(st)
     stub = create_stub(auth)
     userDataObject = auth.get_user_app_id_proto()
 
     docsearch = Clarifai(
-        user_id=userDataObject.user_id, app_id=userDataObject.app_id, pat=auth._pat
+        user_id=userDataObject.user_id, app_id=userDataObject.app_id, pat=auth._pat, number_of_docs=number_of_docs
     )
 
     print("Searching for: %s" % user_input)
@@ -178,7 +178,7 @@ def create_retrieval_qa_chat_chain(split_texts):
         OpenAI(temperature=0),
         vectorstore.as_retriever(),
         memory=memory,
-        chain_type="refine",
+        chain_type="refine"
     )
     return retrieval_qa_chat_chain
 
