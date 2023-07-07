@@ -18,20 +18,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Check if API key is in environment variables
-# if "OPENAI_API_KEY" not in os.environ:
-#   placeholder = st.empty()
-#   OPENAI_API_KEY = placeholder.text_input(
-#       "Enter OpenAI API key here",
-#       placeholder="OpenAI API key",
-#       type="password",
-#       key="api_key",
-#   )
-
-#   if OPENAI_API_KEY != "":
-#     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-#     placeholder.empty()
-
 # init session state
 if "full_text" not in st.session_state:
   st.session_state.full_text = ""

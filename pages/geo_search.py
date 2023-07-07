@@ -4,9 +4,9 @@ import plotly.express as px
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
-
 from langchain import LLMChain, PromptTemplate
 from langchain.llms import Clarifai
+
 from utils.geo_search_utils import (display_location_info, get_location_data,
                                     get_summarization_output, llm_output_to_json,
                                     process_post_searches_response, search_with_geopoints)
@@ -35,7 +35,7 @@ task_query = st.text_area("Enter your task here")
 if task_query:
   # Create OpenAI language model
   pat = auth._pat
-  llm_chatgpt = Clarifai(clarifai_pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
+  llm_chatgpt = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   # Create prompt template that retrieves the location and radius from the task query
   prompt = PromptTemplate(template=NER_LOC_RADIUS_PROMPT, input_variables=["page_content"])
   llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)

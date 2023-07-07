@@ -5,9 +5,9 @@ import PyPDF2
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
+from langchain import LLMChain, PromptTemplate
 
 from geopy.geocoders import Nominatim
-from langchain import LLMChain, PromptTemplate
 from utils.prompts import NER_LOC_PROMPT
 from utils.upload_utils import post_texts_with_geo, split_into_chunks, word_counter
 
@@ -89,7 +89,7 @@ if uploaded_file:
   st.dataframe(metadata_sorted_df)
 
   auth = ClarifaiAuthHelper.from_streamlit(st)
-  llm_chatgpt = Clarifai(clarifai_pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
+  llm_chatgpt = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   prompt = PromptTemplate(template=NER_LOC_PROMPT, input_variables=["page_content"])
   llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
 
