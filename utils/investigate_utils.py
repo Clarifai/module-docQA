@@ -11,7 +11,6 @@ from clarifai.client import create_stub
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2
 from google.protobuf.struct_pb2 import Struct
-
 from langchain import LLMChain, PromptTemplate
 from langchain.chains import AnalyzeDocumentChain, ConversationalRetrievalChain
 from langchain.chains.summarize import load_summarize_chain
@@ -146,7 +145,7 @@ def get_clarifai_docsearch(user_input, number_of_docs):
 def load_custom_llm_chain(prompt_template, model_name):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
-  llm_chatgpt = Clarifai(clarifai_pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
+  llm_chatgpt = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   prompt = PromptTemplate(template=prompt_template, input_variables=["page_content"])
   llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
   return llm_chain
@@ -160,12 +159,12 @@ def create_retrieval_qa_chat_chain(split_texts):
   pat = auth._pat
   # embeddings = OpenAIEmbeddings()
   embeddings = ClarifaiEmbeddings(
-      clarifai_pat=pat, user_id=EMBED_USER_ID, app_id=EMBED_APP_ID, model_id=EMBED_MODEL_ID)
+      pat=pat, user_id=EMBED_USER_ID, app_id=EMBED_APP_ID, model_id=EMBED_MODEL_ID)
   vectorstore = FAISS.from_documents(documents, embeddings)
 
   memory = ConversationBufferMemory(memory_key="chat_history", return_messages=False)
   retrieval_qa_chat_chain = ConversationalRetrievalChain.from_llm(
-      Clarifai(clarifai_pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID),
+      Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID),
       vectorstore.as_retriever(),
       memory=memory,
       chain_type="refine")
@@ -197,7 +196,7 @@ def get_full_text(_docs, doc_selection):
 def get_summarization_output(_docs, doc_selection, full_text):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
-  llm = Clarifai(clarifai_pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
+  llm = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
   summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
   text_summary = summarize_document_chain.run(full_text)

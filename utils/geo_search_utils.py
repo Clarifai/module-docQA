@@ -2,19 +2,18 @@ import json
 import traceback
 from typing import Dict, List, Optional
 
+import geopy
 import requests
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 ## Import in the Clarifai gRPC based objects needed
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2
+from geopy.geocoders import Nominatim
 from grpc import RpcError
 from langchain.chains.summarize import load_summarize_chain
 from langchain.docstore.document import Document
 from langchain.llms import Clarifai
-
-import geopy
-from geopy.geocoders import Nominatim
 
 geolocator = Nominatim(user_agent="geoint")
 
@@ -162,7 +161,7 @@ def get_summarization_output(texts: List[str]) -> str:
 
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
-  llm = Clarifai(clarifai_pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
+  llm = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
   text_summary = summary_chain.run(docs)
   return text_summary
