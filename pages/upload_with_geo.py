@@ -5,13 +5,17 @@ import PyPDF2
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
+from clarifai.modules.css import ClarifaiStreamlitCSS
+from geopy.geocoders import Nominatim
 from langchain import LLMChain, PromptTemplate
 
-from geopy.geocoders import Nominatim
 from utils.prompts import NER_LOC_PROMPT
 from utils.upload_utils import post_texts_with_geo, split_into_chunks, word_counter
 
 st.set_page_config(page_title="Upload App", page_icon=":robot:")
+
+ClarifaiStreamlitCSS.insert_default_css(st)
+
 USER_ID = "openai"
 APP_ID = "chat-completion"
 MODEL_ID = "GPT-3_5-turbo"

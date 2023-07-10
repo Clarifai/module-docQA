@@ -1,11 +1,11 @@
-import os
-
 import streamlit as st
+from clarifai.modules.css import ClarifaiStreamlitCSS
 
 st.set_page_config(layout="wide", page_icon="https://clarifai.com/favicon.svg")
 
-st.markdown(
-    """
+ClarifaiStreamlitCSS.insert_default_css(st)
+
+st.markdown("""
     **Helper module that allows you to upload and explore large amount of texts**
     ## 📄 Pages
     #### 🌐 Geo Search
@@ -16,5 +16,4 @@ st.markdown(
     Upload and chunk a PDF to a Clarifai application.
     #### 📟 🌐 Upload with geo
     Upload and chunk with geo data a PDF to a Clarifai application.
-"""
-)
+""")

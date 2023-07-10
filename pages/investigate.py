@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
+from clarifai.modules.css import ClarifaiStreamlitCSS
 from streamlit_chat import message
 
 from utils.investigate_utils import (
@@ -17,6 +18,8 @@ st.set_page_config(
     page_icon="https://clarifai.com/favicon.svg",
     layout="wide",
 )
+
+ClarifaiStreamlitCSS.insert_default_css(st)
 
 # init session state
 if "full_text" not in st.session_state:
