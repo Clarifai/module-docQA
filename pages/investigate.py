@@ -94,7 +94,7 @@ if user_input:
         full_text, search_input_df = get_full_text(docs, doc_selection)
         st.session_state.full_text = full_text
         st.session_state.search_input_df = search_input_df
-        st.write(get_summarization_output(docs, doc_selection, full_text))
+        st.write(get_summarization_output(full_text))
 
       if not st.session_state.search_input_df.empty:
         st.dataframe(st.session_state.search_input_df)
