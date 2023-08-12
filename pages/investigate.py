@@ -38,7 +38,7 @@ st.markdown(
 
 user_input = get_search_query_text()
 number_of_docs = st.selectbox(
-    "Select number of documents to return", options=[2, 4, 6, 8, 10, 12], index=0)
+    "Select number of documents to return", options=[2, 4, 6, 8, 10, 12], index=2)
 
 if user_input:
   docs = get_clarifai_docsearch(user_input, number_of_docs)
@@ -77,7 +77,7 @@ if user_input:
     columns = st.columns(len(combined_entities))
     for idx, (entity_type, entity_list) in enumerate(combined_entities.items()):
       columns[idx].info(f"**{entity_type}**")
-      columns[idx].json(entity_list)
+      columns[idx].json(entity_list, expanded=False)
 
     doc_selection = st.selectbox(
         "Select search result to investigate",
