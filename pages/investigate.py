@@ -44,7 +44,7 @@ resp = stub.ListInputs(
 
 cache_id = "clarifai_app_cache_id"
 if len(resp.inputs) > 0:
-  cache_id = inputs.inputs[0].id
+  cache_id = resp.inputs[0].id
 
 st.markdown(
     "This will let you ask questions about the text content in your app. Make sure it's indexed with the Language-Understanding base workflow. Instead of using OpenAI embeddings we use that base workflow embeddings AND our own vector search from our API! This will collect a shortlist of the docs and then try to summarize the shortlist into one cohesive paragraph. So it's succesptible to combining lots of unrelated information that is retrieved. "
