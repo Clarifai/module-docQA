@@ -6,6 +6,7 @@ import streamlit as st
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from clarifai.modules.css import ClarifaiStreamlitCSS
+from clarifai_grpc.grpc.api import service_pb2
 from streamlit_chat import message
 
 from utils.investigate_utils import (
@@ -32,6 +33,19 @@ auth = ClarifaiAuthHelper.from_streamlit(st)
 stub = create_stub(auth)
 userDataObject = auth.get_user_app_id_proto()
 
+#############
+# We need a cache ID so that if a user changes their app we
+#############
+# app = stub.GetApp(service_pb2.GetAppRequest(user_app_id=userDataObject))
+# st.json(MessageToDict(app, preserving_proto_field_name=True))
+
+resp = stub.ListInputs(
+    service_pb2.ListInputsRequest(user_app_id=userDataObject, page=1, per_page=1))
+
+cache_id = "clarifai_app_cache_id"
+if len(resp.inputs) > 0:
+  cache_id = inputs.inputs[0].id
+
 st.markdown(
     "This will let you ask questions about the text content in your app. Make sure it's indexed with the Language-Understanding base workflow. Instead of using OpenAI embeddings we use that base workflow embeddings AND our own vector search from our API! This will collect a shortlist of the docs and then try to summarize the shortlist into one cohesive paragraph. So it's succesptible to combining lots of unrelated information that is retrieved. "
 )
@@ -41,7 +55,7 @@ number_of_docs = st.selectbox(
     "Select number of documents to return", options=[2, 4, 6, 8, 10, 12], index=2)
 
 if user_input:
-  docs = get_clarifai_docsearch(user_input, number_of_docs)
+  docs = get_clarifai_docsearch(user_input, number_of_docs, cache_id)
 
   with st.expander(f"{len(docs)} Docs answering from:"):
     for idx, doc in enumerate(docs):
@@ -56,7 +70,7 @@ if user_input:
         "source": doc.metadata["source"]
     } for doc in docs]
 
-    llm_chain = load_custom_llm_chain(prompt_template=NER_PROMPT, model_name="gpt-3.5-turbo")
+    llm_chain = load_custom_llm_chain(prompt_template=NER_PROMPT)
 
     llm_chain.save("blah.json")
 
@@ -91,10 +105,10 @@ if user_input:
       st.markdown(f"### {docs[doc_selection].metadata['source']}")
 
       if st.button("Summarize"):
-        full_text, search_input_df = get_full_text(docs, doc_selection)
+        full_text, search_input_df = get_full_text(docs, doc_selection, cache_id)
         st.session_state.full_text = full_text
         st.session_state.search_input_df = search_input_df
-        st.write(get_summarization_output(full_text))
+        st.write(get_summarization_output(full_text, cache_id))
 
       if not st.session_state.search_input_df.empty:
         st.dataframe(st.session_state.search_input_df)
@@ -110,7 +124,7 @@ if user_input:
 
           if st.session_state.full_text != "":
             split_texts = st.session_state.search_input_df.text.to_list()
-            retrieval_qa_chat_chain = create_retrieval_qa_chat_chain(split_texts)
+            retrieval_qa_chat_chain = create_retrieval_qa_chat_chain(split_texts, cache_id)
 
             if "generatedcl2" not in st.session_state:
               st.session_state["generatedcl2"] = []

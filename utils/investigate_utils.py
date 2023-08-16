@@ -132,7 +132,7 @@ def process_post_searches_response(post_searches_response):
 
 
 @st.cache_data(persist=True)
-def get_clarifai_docsearch(user_input, number_of_docs):
+def get_clarifai_docsearch(user_input, number_of_docs, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   stub = create_stub(auth)
   userDataObject = auth.get_user_app_id_proto()
@@ -145,11 +145,12 @@ def get_clarifai_docsearch(user_input, number_of_docs):
 
   print("Searching for: %s" % user_input)
   docs = docsearch.similarity_search(user_input)
+  st.write(docs)
   return docs
 
 
 # Function to load custom llm chain
-def load_custom_llm_chain(prompt_template, model_name):
+def load_custom_llm_chain(prompt_template):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
   llm_chatgpt = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
@@ -162,7 +163,7 @@ def load_custom_llm_chain(prompt_template, model_name):
     persist=True, hash_funcs={
         list: lambda l: "".join([str(x.page_content) for x in l])
     })
-def get_embeddings(pat, documents):
+def get_embeddings(pat, documents, cache_id):
   embedder = ClarifaiEmbeddings(
       pat=pat, user_id=EMBED_USER_ID, app_id=EMBED_APP_ID, model_id=EMBED_MODEL_ID)
   texts = [doc.page_content for doc in documents]
@@ -170,7 +171,7 @@ def get_embeddings(pat, documents):
   return embeddings
 
 
-def create_retrieval_qa_chat_chain(split_texts):
+def create_retrieval_qa_chat_chain(split_texts, cache_id):
   text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
   documents = text_splitter.create_documents(split_texts)
   auth = ClarifaiAuthHelper.from_streamlit(st)
@@ -196,7 +197,7 @@ def create_retrieval_qa_chat_chain(split_texts):
 
 # Function that gets the texts and stitches them to create a full text from Clarifai app
 @st.cache_data(persist=True, hash_funcs={list: lambda l: "".join([str(x) for x in l])})
-def get_full_text(docs, doc_selection):
+def get_full_text(docs, doc_selection, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   stub = create_stub(auth)
   userDataObject = auth.get_user_app_id_proto()
@@ -217,7 +218,7 @@ def get_full_text(docs, doc_selection):
 
 # Function that gets summarization output using LLM chain
 @st.cache_data(persist=True)
-def get_summarization_output(full_text):
+def get_summarization_output(full_text, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
   llm = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
