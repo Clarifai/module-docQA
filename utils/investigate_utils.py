@@ -146,7 +146,6 @@ def get_clarifai_docsearch(user_input, number_of_docs, cache_id):
 
   print("Searching for: %s" % user_input)
   docs = docsearch.similarity_search(user_input)
-  st.write(docs)
   return docs
 
 
