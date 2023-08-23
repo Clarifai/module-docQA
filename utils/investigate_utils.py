@@ -74,9 +74,10 @@ def calculate_expected_batch_number(inputs: List[Any], batch_size: int) -> int:
   return expected_batch_nums
 
 
-def url_to_text(url):
+def url_to_text(auth, url):
   try:
-    response = requests.get(url)
+    h = {"Authorization": f"Key {auth.pat}"}
+    response = requests.get(url, headers=h)
     response.encoding = response.apparent_encoding
   except Exception as e:
     print(f"Error: {e}")
@@ -104,7 +105,7 @@ def search_with_metadata(stub, userDataObject, search_metadata_key, search_metad
     return post_searches_response
 
 
-def process_post_searches_response(post_searches_response):
+def process_post_searches_response(auth, post_searches_response):
   input_success_status = {
       status_code_pb2.INPUT_DOWNLOAD_SUCCESS,
       status_code_pb2.INPUT_DOWNLOAD_PENDING,
@@ -121,7 +122,7 @@ def process_post_searches_response(post_searches_response):
     input_dict = {}
 
     input_dict["input_id"] = input.id
-    input_dict["text"] = url_to_text(input.data.text.url)
+    input_dict["text"] = url_to_text(auth, input.data.text.url)
     input_dict["source"] = input.data.metadata["source"]
     input_dict["text_length"] = input.data.metadata["text_length"]
     input_dict["page_number"] = input.data.metadata["page_number"]
@@ -208,7 +209,7 @@ def get_full_text(docs, doc_selection, cache_id):
       search_metadata_key="source",
       search_metadata_value=docs[doc_selection].metadata["source"],
   )
-  search_input_df = pd.DataFrame(process_post_searches_response(post_searches_response))
+  search_input_df = pd.DataFrame(process_post_searches_response(auth, post_searches_response))
   search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
   search_input_df.reset_index(drop=True, inplace=True)
   # st.session_state.search_input_df = search_input_df

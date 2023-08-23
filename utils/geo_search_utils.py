@@ -72,8 +72,10 @@ def url_to_text(url: str) -> str:
 
 
 @st.cache_resource
-def process_post_searches_response(post_searches_response: service_pb2.MultiSearchResponse,
-                                  ) -> List[Dict]:
+def process_post_searches_response(
+    auth,
+    post_searches_response: service_pb2.MultiSearchResponse,
+) -> List[Dict]:
   """
     Given a response object from a POST /searches API call, returns a list of
     dictionaries containing the input data for each search result that was
@@ -94,7 +96,7 @@ def process_post_searches_response(post_searches_response: service_pb2.MultiSear
     # Initializations
     input_dict = {}
     input_dict["input_id"] = input.id
-    input_dict["text"] = url_to_text(input.data.text.url)
+    input_dict["text"] = url_to_text(auth, input.data.text.url)
     input_dict["source"] = input.data.metadata["source"]
     input_dict["text_length"] = input.data.metadata["text_length"]
     input_dict["page_number"] = input.data.metadata["page_number"]
