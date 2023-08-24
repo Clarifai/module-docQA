@@ -28,6 +28,14 @@ EMBED_USER_ID = "openai"
 EMBED_APP_ID = "embed"
 EMBED_MODEL_ID = "text-embedding-ada"
 
+# EMBED_USER_ID = "clarifai"
+# EMBED_APP_ID = "main"
+# EMBED_MODEL_ID = "multilingual-text-embedding"
+
+EMBED_USER_ID = "salesforce"
+EMBED_APP_ID = "blip"
+EMBED_MODEL_ID = "multimodal-embedder-blip-2"
+
 
 def get_search_query_text():
   input_text = st.text_input(
@@ -66,9 +74,10 @@ def calculate_expected_batch_number(inputs: List[Any], batch_size: int) -> int:
   return expected_batch_nums
 
 
-def url_to_text(url):
+def url_to_text(auth, url):
   try:
-    response = requests.get(url)
+    h = {"Authorization": f"Key {auth.pat}"}
+    response = requests.get(url, headers=h)
     response.encoding = response.apparent_encoding
   except Exception as e:
     print(f"Error: {e}")
@@ -96,7 +105,7 @@ def search_with_metadata(stub, userDataObject, search_metadata_key, search_metad
     return post_searches_response
 
 
-def process_post_searches_response(post_searches_response):
+def process_post_searches_response(auth, post_searches_response):
   input_success_status = {
       status_code_pb2.INPUT_DOWNLOAD_SUCCESS,
       status_code_pb2.INPUT_DOWNLOAD_PENDING,
@@ -113,7 +122,7 @@ def process_post_searches_response(post_searches_response):
     input_dict = {}
 
     input_dict["input_id"] = input.id
-    input_dict["text"] = url_to_text(input.data.text.url)
+    input_dict["text"] = url_to_text(auth, input.data.text.url)
     input_dict["source"] = input.data.metadata["source"]
     input_dict["text_length"] = input.data.metadata["text_length"]
     input_dict["page_number"] = input.data.metadata["page_number"]
@@ -123,8 +132,8 @@ def process_post_searches_response(post_searches_response):
   return input_dict_list
 
 
-@st.cache_data
-def get_clarifai_docsearch(user_input, number_of_docs):
+@st.cache_data(persist=True)
+def get_clarifai_docsearch(user_input, number_of_docs, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   stub = create_stub(auth)
   userDataObject = auth.get_user_app_id_proto()
@@ -141,8 +150,7 @@ def get_clarifai_docsearch(user_input, number_of_docs):
 
 
 # Function to load custom llm chain
-@st.cache_resource
-def load_custom_llm_chain(prompt_template, model_name):
+def load_custom_llm_chain(prompt_template):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
   llm_chatgpt = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
@@ -151,39 +159,56 @@ def load_custom_llm_chain(prompt_template, model_name):
   return llm_chain
 
 
-# @st.cache_resource
-def create_retrieval_qa_chat_chain(split_texts):
+@st.cache_data(
+    persist=True, hash_funcs={
+        list: lambda l: "".join([str(x.page_content) for x in l])
+    })
+def get_embeddings(pat, documents, cache_id):
+  embedder = ClarifaiEmbeddings(
+      pat=pat, user_id=EMBED_USER_ID, app_id=EMBED_APP_ID, model_id=EMBED_MODEL_ID)
+  texts = [doc.page_content for doc in documents]
+  embeddings = embedder.embed_documents(texts)
+  return embeddings
+
+
+def create_retrieval_qa_chat_chain(split_texts, cache_id):
   text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
   documents = text_splitter.create_documents(split_texts)
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
-  # embeddings = OpenAIEmbeddings()
-  embeddings = ClarifaiEmbeddings(
+  texts = [doc.page_content for doc in documents]
+  embedder = ClarifaiEmbeddings(
       pat=pat, user_id=EMBED_USER_ID, app_id=EMBED_APP_ID, model_id=EMBED_MODEL_ID)
-  vectorstore = FAISS.from_documents(documents, embeddings)
+  embeddings = get_embeddings(pat, documents, cache_id)
+
+  blah = zip(texts, embeddings)
+  vectorstore = FAISS.from_embeddings([a for a in blah], embedder)
 
   memory = ConversationBufferMemory(memory_key="chat_history", return_messages=False)
   retrieval_qa_chat_chain = ConversationalRetrievalChain.from_llm(
       Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID),
       vectorstore.as_retriever(),
       memory=memory,
-      chain_type="refine")
+      chain_type="stuff",
+      return_source_documents=False,
+      get_chat_history=lambda h: h)
   return retrieval_qa_chat_chain
 
 
 # Function that gets the texts and stitches them to create a full text from Clarifai app
-def get_full_text(_docs, doc_selection):
+@st.cache_data(persist=True, hash_funcs={list: lambda l: "".join([str(x) for x in l])})
+def get_full_text(docs, doc_selection, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   stub = create_stub(auth)
   userDataObject = auth.get_user_app_id_proto()
-  print("Searching for: %s" % _docs[doc_selection].metadata["source"])
+  print("Searching for: %s" % docs[doc_selection].metadata["source"])
   post_searches_response = search_with_metadata(
       stub,
       userDataObject,
       search_metadata_key="source",
-      search_metadata_value=_docs[doc_selection].metadata["source"],
+      search_metadata_value=docs[doc_selection].metadata["source"],
   )
-  search_input_df = pd.DataFrame(process_post_searches_response(post_searches_response))
+  search_input_df = pd.DataFrame(process_post_searches_response(auth, post_searches_response))
   search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
   search_input_df.reset_index(drop=True, inplace=True)
   # st.session_state.search_input_df = search_input_df
@@ -192,8 +217,8 @@ def get_full_text(_docs, doc_selection):
 
 
 # Function that gets summarization output using LLM chain
-@st.cache_data
-def get_summarization_output(_docs, doc_selection, full_text):
+@st.cache_data(persist=True)
+def get_summarization_output(full_text, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
   llm = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
@@ -216,7 +241,7 @@ def get_openai_output(_llm_chain, input):
   return chat_output
 
 
-@st.cache_data
+@st.cache_data(persist=True)
 def extract_entities(llm_output):
   if isinstance(llm_output, dict) and len(llm_output) == 6:
     return llm_output
@@ -232,7 +257,7 @@ def extract_entities(llm_output):
     return entity_dict
 
 
-@st.cache_data
+@st.cache_data(persist=True)
 def process_input(_llm_chain, input):
   chat_output = get_openai_output(_llm_chain, input["page_content"])
   entities = extract_entities(chat_output["text"])
@@ -244,7 +269,7 @@ def process_input(_llm_chain, input):
   return entities
 
 
-@st.cache_data
+@st.cache_data(persist=True)
 def parallel_process_input(_llm_chain, input_list):
   entities_list = []
   with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:

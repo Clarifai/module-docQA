@@ -65,7 +65,7 @@ if task_query:
   )
 
   # Process post search response into a dictionary list
-  input_dict_list = process_post_searches_response(post_searches_response)
+  input_dict_list = process_post_searches_response(auth, post_searches_response)
   # Convert dictionary list to pandas DataFrame
   input_df = pd.DataFrame(input_dict_list)
 
