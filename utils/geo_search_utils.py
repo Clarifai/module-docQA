@@ -17,6 +17,9 @@ from langchain.llms import Clarifai
 
 geolocator = Nominatim(user_agent="geoint")
 
+USER_ID = "openai"
+APP_ID = "chat-completion"
+MODEL_ID = "GPT-3_5-turbo"
 
 # Create function that searches with a given longitude and latitude
 @st.cache_resource
@@ -58,12 +61,24 @@ def search_with_geopoints(
     st.error(f"Error: {e} - {traceback.print_exc()}")
 
 
-def url_to_text(url: str) -> str:
-  """
-    Given a URL, returns the text content of the web page as a string.
-    """
+
+#def url_to_text(auth, url: str) -> str:
+#  """
+#    Given a URL, returns the text content of the web page as a string.
+#    """
+#  try:
+#    response = requests.get(url)
+#    response.encoding = response.apparent_encoding
+#  except Exception as e:
+#    print(f"Error: {e}")
+#    response = None
+#  return response.text if response else ""
+
+
+def url_to_text(auth, url):
   try:
-    response = requests.get(url)
+    h = {"Authorization": f"Key {auth.pat}"}
+    response = requests.get(url, headers=h)
     response.encoding = response.apparent_encoding
   except Exception as e:
     print(f"Error: {e}")
@@ -73,7 +88,7 @@ def url_to_text(url: str) -> str:
 
 @st.cache_resource
 def process_post_searches_response(
-    auth,
+    _auth,
     post_searches_response: service_pb2.MultiSearchResponse,
 ) -> List[Dict]:
   """
@@ -96,7 +111,7 @@ def process_post_searches_response(
     # Initializations
     input_dict = {}
     input_dict["input_id"] = input.id
-    input_dict["text"] = url_to_text(auth, input.data.text.url)
+    input_dict["text"] = url_to_text(_auth, input.data.text.url)
     input_dict["source"] = input.data.metadata["source"]
     input_dict["text_length"] = input.data.metadata["text_length"]
     input_dict["page_number"] = input.data.metadata["page_number"]
