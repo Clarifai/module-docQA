@@ -179,7 +179,7 @@ def create_retrieval_qa_chat_chain(split_texts, cache_id):
   texts = [doc.page_content for doc in documents]
   embedder = ClarifaiEmbeddings(
       pat=pat, user_id=EMBED_USER_ID, app_id=EMBED_APP_ID, model_id=EMBED_MODEL_ID)
-  embeddings = get_embeddings(pat, documents)
+  embeddings = get_embeddings(pat, documents, cache_id)
 
   blah = zip(texts, embeddings)
   vectorstore = FAISS.from_embeddings([a for a in blah], embedder)
