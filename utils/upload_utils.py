@@ -1,5 +1,6 @@
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2
+from clarifai.client.input import Inputs
 from google.protobuf.json_format import ParseDict
 from stqdm import stqdm
 
@@ -40,9 +41,13 @@ def post_texts_with_geo(
         )
 
         post_inputs_response = stub.PostInputs(post_inputs_request)
-        # print(response)
+
         if post_inputs_response.status.code != status_code_pb2.SUCCESS:
             raise Exception("PostInputs request failed: %r" % post_inputs_response)
+        
+        #SDK (but returns only jobID, although function is not widely used)
+        input_obj = Inputs(user_id=userDataObject.user_id, app_id = userDataObject.app_id)
+        post_inp=input_obj.upload_inputs(inputs)
 
     return post_inputs_response
 
