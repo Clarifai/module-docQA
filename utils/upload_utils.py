@@ -1,3 +1,4 @@
+import uuid
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2
 from clarifai.client.input import Inputs
@@ -21,9 +22,13 @@ def post_texts_with_geo(
         geo_points_batch = geo_points_list[chunking_idx : chunking_idx + batch_size]
 
         inputs = []
+        input_obj = Inputs(logger_level="ERROR",
+                           user_id=userDataObject.user_id,
+                           app_id = userDataObject.app_id)
+        
         for idx, text in enumerate(text_batch):
-            input_obj = Inputs(logger_level="ERROR")
-            id = hashlib.md5(text.encode("utf-8")).hexdigest()
+
+            id = uuid.uuid4().hex
             input_protos = input_obj.get_text_input(
                 input_id=id,
                 raw_text=text,
@@ -35,11 +40,7 @@ def post_texts_with_geo(
             ParseDict(metadata_batch[idx], input_protos.data.metadata)
             inputs.append(input_protos)
         
-        #SDK (but returns only jobID)
-        input_obj = Inputs(logger_level="ERROR",
-                           user_id=userDataObject.user_id,
-                           app_id = userDataObject.app_id)
-        
+        #SDK (upload_inputs returns only jobID)
         post_inputs_request=input_obj.upload_inputs(inputs)
 
     #return input_protos
@@ -55,29 +56,23 @@ def post_texts(st, stub, userDataObject, text_list, metadata_list):
         metadata_batch = metadata_list[chunking_idx : chunking_idx + batch_size]
 
         inputs = []
+        input_obj = Inputs(logger_level="ERROR",
+                           user_id=userDataObject.user_id, 
+                           app_id = userDataObject.app_id)
+        
         for idx, text in enumerate(text_batch):
-            input_obj = Inputs(logger_level="ERROR")
-            id = hashlib.md5(text.encode("utf-8")).hexdigest()
+            id = uuid.uuid4().hex
             input_protos = input_obj.get_text_input(
                 input_id=id,
                 raw_text=text
-            )
-
-            inp = resources_pb2.Input(
-                data=resources_pb2.Data(
-                    text=resources_pb2.Text(raw=text),
-                )
             )
 
             ParseDict(metadata_batch[idx], input_protos.data.metadata)
             inputs.append(input_protos)
 
         #SDK (but returns only jobID, although function is not widely used)
-        input_obj = Inputs(logger_level="ERROR",
-                           user_id=userDataObject.user_id, 
-                           app_id = userDataObject.app_id)
-        
         post_inputs_request=input_obj.upload_inputs(inputs)
+
     #return input_protos
 
 def word_counter(text):
