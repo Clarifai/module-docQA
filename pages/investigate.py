@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
-from clarifai.auth.helper import ClarifaiAuthHelper
+from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client.auth import create_stub
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from clarifai_grpc.grpc.api import service_pb2
