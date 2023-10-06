@@ -1,7 +1,10 @@
+import uuid
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2
+from clarifai.client.input import Inputs
 from google.protobuf.json_format import ParseDict
 from stqdm import stqdm
+import hashlib
 
 
 def post_texts_with_geo(
@@ -19,32 +22,28 @@ def post_texts_with_geo(
         geo_points_batch = geo_points_list[chunking_idx : chunking_idx + batch_size]
 
         inputs = []
+        input_obj = Inputs(logger_level="ERROR",
+                           user_id=userDataObject.user_id,
+                           app_id = userDataObject.app_id)
+        
         for idx, text in enumerate(text_batch):
-            inp = resources_pb2.Input(
-                data=resources_pb2.Data(
-                    text=resources_pb2.Text(raw=text),
-                    geo=resources_pb2.Geo(
-                        geo_point=resources_pb2.GeoPoint(
-                            longitude=geo_points_batch[idx]["lon"],
-                            latitude=geo_points_batch[idx]["lat"],
-                        )
-                    ),
-                )
-            )
 
-            ParseDict(metadata_batch[idx], inp.data.metadata)
-            inputs.append(inp)
+            id = uuid.uuid4().hex
+            input_protos = input_obj.get_text_input(
+                input_id=id,
+                raw_text=text,
+                geo_info=[geo_points_batch[idx]["lon"],
+                          geo_points_batch[idx]["lat"]
+                          ]
+             )
+            
+            ParseDict(metadata_batch[idx], input_protos.data.metadata)
+            inputs.append(input_protos)
+        
+        #SDK (upload_inputs returns only jobID)
+        post_inputs_request=input_obj.upload_inputs(inputs)
 
-        post_inputs_request = service_pb2.PostInputsRequest(
-            user_app_id=userDataObject, inputs=inputs
-        )
-
-        post_inputs_response = stub.PostInputs(post_inputs_request)
-        # print(response)
-        if post_inputs_response.status.code != status_code_pb2.SUCCESS:
-            raise Exception("PostInputs request failed: %r" % post_inputs_response)
-
-    return post_inputs_response
+    #return input_protos
 
 
 def post_texts(st, stub, userDataObject, text_list, metadata_list):
@@ -57,26 +56,24 @@ def post_texts(st, stub, userDataObject, text_list, metadata_list):
         metadata_batch = metadata_list[chunking_idx : chunking_idx + batch_size]
 
         inputs = []
+        input_obj = Inputs(logger_level="ERROR",
+                           user_id=userDataObject.user_id, 
+                           app_id = userDataObject.app_id)
+        
         for idx, text in enumerate(text_batch):
-            inp = resources_pb2.Input(
-                data=resources_pb2.Data(
-                    text=resources_pb2.Text(raw=text),
-                )
+            id = uuid.uuid4().hex
+            input_protos = input_obj.get_text_input(
+                input_id=id,
+                raw_text=text
             )
 
-            ParseDict(metadata_batch[idx], inp.data.metadata)
-            inputs.append(inp)
+            ParseDict(metadata_batch[idx], input_protos.data.metadata)
+            inputs.append(input_protos)
 
-        post_inputs_request = service_pb2.PostInputsRequest(
-            user_app_id=userDataObject, inputs=inputs
-        )
+        #SDK (but returns only jobID, although function is not widely used)
+        post_inputs_request=input_obj.upload_inputs(inputs)
 
-        post_inputs_response = stub.PostInputs(post_inputs_request)
-        if post_inputs_response.status.code != status_code_pb2.SUCCESS:
-            raise Exception("PostInputs request failed: %r" % post_inputs_response)
-
-    return post_inputs_response
-
+    #return input_protos
 
 def word_counter(text):
     return len(text.split())

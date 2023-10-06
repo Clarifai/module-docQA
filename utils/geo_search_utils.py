@@ -62,19 +62,6 @@ def search_with_geopoints(
 
 
 
-#def url_to_text(auth, url: str) -> str:
-#  """
-#    Given a URL, returns the text content of the web page as a string.
-#    """
-#  try:
-#    response = requests.get(url)
-#    response.encoding = response.apparent_encoding
-#  except Exception as e:
-#    print(f"Error: {e}")
-#    response = None
-#  return response.text if response else ""
-
-
 def url_to_text(auth, url):
   try:
     h = {"Authorization": f"Key {auth.pat}"}

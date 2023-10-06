@@ -10,6 +10,7 @@ from geopy.geocoders import Nominatim
 from langchain import LLMChain, PromptTemplate
 from langchain.llms import Clarifai
 
+
 from utils.prompts import NER_LOC_PROMPT
 from utils.upload_utils import post_texts_with_geo, split_into_chunks, word_counter
 
@@ -121,6 +122,7 @@ if uploaded_file:
         geo_points["lon"] = None
         geo_points_list.append(geo_points)
 
+  #post_texts_with_geo used to upload input in the app along with metadata and ids.
   post_texts_with_geo(st, stub, userDataObject, text_chunks, metadata_list, geo_points_list)
   st.success("Done!")
   st.balloons()

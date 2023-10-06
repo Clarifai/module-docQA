@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
-from clarifai.auth.helper import ClarifaiAuthHelper
-from clarifai.client import create_stub
+from clarifai.client.auth.helper import ClarifaiAuthHelper
+from clarifai.client.auth import create_stub
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from clarifai_grpc.grpc.api import service_pb2
+from clarifai.client.user import User
 from streamlit_chat import message
 
 from utils.investigate_utils import (
@@ -41,6 +42,10 @@ userDataObject = auth.get_user_app_id_proto()
 
 resp = stub.ListInputs(
     service_pb2.ListInputsRequest(user_app_id=userDataObject, page=1, per_page=1))
+
+#SDK function retrieves all responses. (need only first response, can be changed when it is implemented)
+#input_obj = User(user_id=userDataObject.user_id).app(app_id=userDataObject.app_id).inputs()
+#resp2=input_obj.list_inputs()
 
 cache_id = "clarifai_app_cache_id"
 if len(resp.inputs) > 0:
