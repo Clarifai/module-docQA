@@ -39,22 +39,10 @@ userDataObject = auth.get_user_app_id_proto()
 # We need a cache ID so that if a user changes their app we
 #############
 app = stub.GetApp(service_pb2.GetAppRequest(user_app_id=userDataObject))
-st.info(app)
-# st.json(MessageToDict(app, preserving_proto_field_name=True))
-
-# resp = stub.ListInputs(
-#     service_pb2.ListInputsRequest(user_app_id=userDataObject, page=1, per_page=1))
-
-#SDK function retrieves all responses. (need only first response, can be changed when it is implemented)
-#input_obj = User(user_id=userDataObject.user_id).app(app_id=userDataObject.app_id).inputs()
-#resp2=input_obj.list_inputs()
 
 cache_id = "clarifai_app_cache_id"
-# if len(resp.inputs) > 0:
-#   cache_id = resp.inputs[0].id
-
-if app.extra_info and  app.extra_info.search_revision_marker and app.extra_info.search_revision_marker != cache_id:
-  cache_id = app.extra_info.search_revision_marker
+if app.app.extra_info and  app.app.extra_info.search_revision_marker and app.app.extra_info.search_revision_marker != cache_id:
+  cache_id = app.app.extra_info.search_revision_marker
 
 st.markdown(
     "This will let you ask questions about the text content in your app. Make sure it's indexed with the Language-Understanding base workflow. Instead of using OpenAI embeddings we use that base workflow embeddings AND our own vector search from our API! This will collect a shortlist of the docs and then try to summarize the shortlist into one cohesive paragraph. So it's succesptible to combining lots of unrelated information that is retrieved. "
