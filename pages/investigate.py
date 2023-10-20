@@ -8,7 +8,6 @@ from clarifai.client.auth import create_stub
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from clarifai_grpc.grpc.api import service_pb2
 from clarifai.client.user import User
-from google.protobuf.json_format import MessageToDict
 from streamlit_chat import message
 
 from utils.investigate_utils import (
