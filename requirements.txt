@@ -5,7 +5,7 @@ PyPDF2==3.0.1
 tiktoken==0.3.0
 clarifai==9.8.1
 stqdm==0.0.4
-requests==2.28.1
+requests==2.31.0
 plotly==5.14.1
 geopy==2.3.0
 # chromadb==0.3.21
