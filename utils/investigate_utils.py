@@ -30,14 +30,6 @@ EMBED_USER_ID = "openai"
 EMBED_APP_ID = "embed"
 EMBED_MODEL_ID = "text-embedding-ada"
 
-# EMBED_USER_ID = "clarifai"
-# EMBED_APP_ID = "main"
-# EMBED_MODEL_ID = "multilingual-text-embedding"
-
-# EMBED_USER_ID = "salesforce"
-# EMBED_APP_ID = "blip"
-# EMBED_MODEL_ID = "multimodal-embedder-blip-2"
-
 
 def get_search_query_text():
   input_text = st.text_input(
@@ -189,7 +181,6 @@ def create_retrieval_qa_chat_chain(split_texts, cache_id):
   memory = ConversationBufferMemory(memory_key="chat_history", return_messages=False)
   retrieval_qa_chat_chain = ConversationalRetrievalChain.from_llm(
       Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID),
-      # vectorstore.as_retriever(),
       vectorstore.as_retriever(search_kwargs={'k': 3}),
       memory=memory,
       chain_type="stuff",
