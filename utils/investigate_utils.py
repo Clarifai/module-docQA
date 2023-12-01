@@ -1,29 +1,31 @@
+from typing import Any, List
 import concurrent.futures
 import json
-from typing import Any, List
-
 import pandas as pd
 import requests
 import streamlit as st
+from google.protobuf.struct_pb2 import Struct
+
 from clarifai.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
-## Import in the Clarifai gRPC based objects needed
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2
-from google.protobuf.struct_pb2 import Struct
-from langchain import LLMChain, PromptTemplate
+
 from langchain.chains import AnalyzeDocumentChain, ConversationalRetrievalChain
+from langchain.chains import LLMChain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings import ClarifaiEmbeddings
 from langchain.llms import Clarifai
 from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
 from langchain.vectorstores import Clarifai as ClarifaiDB
+from langchain.vectorstores import FAISS
 
 USER_ID = "openai"
 APP_ID = "chat-completion"
 MODEL_ID = "GPT-3_5-turbo"
+
 EMBED_USER_ID = "openai"
 EMBED_APP_ID = "embed"
 EMBED_MODEL_ID = "text-embedding-ada"
@@ -32,9 +34,9 @@ EMBED_MODEL_ID = "text-embedding-ada"
 # EMBED_APP_ID = "main"
 # EMBED_MODEL_ID = "multilingual-text-embedding"
 
-EMBED_USER_ID = "salesforce"
-EMBED_APP_ID = "blip"
-EMBED_MODEL_ID = "multimodal-embedder-blip-2"
+# EMBED_USER_ID = "salesforce"
+# EMBED_APP_ID = "blip"
+# EMBED_MODEL_ID = "multimodal-embedder-blip-2"
 
 
 def get_search_query_text():
@@ -180,14 +182,15 @@ def create_retrieval_qa_chat_chain(split_texts, cache_id):
   embedder = ClarifaiEmbeddings(
       pat=pat, user_id=EMBED_USER_ID, app_id=EMBED_APP_ID, model_id=EMBED_MODEL_ID)
   embeddings = get_embeddings(pat, documents, cache_id)
-
   blah = zip(texts, embeddings)
+
   vectorstore = FAISS.from_embeddings([a for a in blah], embedder)
 
   memory = ConversationBufferMemory(memory_key="chat_history", return_messages=False)
   retrieval_qa_chat_chain = ConversationalRetrievalChain.from_llm(
       Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID),
-      vectorstore.as_retriever(),
+      # vectorstore.as_retriever(),
+      vectorstore.as_retriever(search_kwargs={'k': 3}),
       memory=memory,
       chain_type="stuff",
       return_source_documents=False,
