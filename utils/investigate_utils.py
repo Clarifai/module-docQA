@@ -16,6 +16,7 @@ from langchain.chains import LLMChain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings import ClarifaiEmbeddings
 from langchain.llms import Clarifai as ClarifaiLLMs
+from langchain.llms import Clarifai as ClarifaiLLMs
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
@@ -206,7 +207,6 @@ def d_similarity_search_with_score(
 
   # Retrieve hits
   hits = post_annotations_searches_response.hits
-  st.info(hits)
 
   executor = ThreadPoolExecutor(max_workers=10)
 
@@ -263,12 +263,27 @@ def get_unique_docs(docs):
       unq_docs.append(doc)
 
   return unq_docs
+  
+
+def get_unique_docs(docs):
+  unq_docs_meta = []
+  unq_docs = []
+
+  for doc in docs:
+    if doc.metadata in unq_docs_meta:
+      continue
+    else:
+      unq_docs_meta.append(doc.metadata)
+      unq_docs.append(doc)
+
+  return unq_docs
 
 
 # Function to load custom llm chain
 def load_custom_llm_chain(prompt_template):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
+  llm_chatgpt = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   llm_chatgpt = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   prompt = PromptTemplate(template=prompt_template, input_variables=["page_content"])
   llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
@@ -323,9 +338,11 @@ def get_full_text(docs, doc_selection, cache_id):
       stub,
       userDataObject,
       search_metadata_key="source",
-      search_metadata_value=meta_source,
+      search_metadata_value=meta_source
   )
   search_input_df = pd.DataFrame(process_post_searches_response(auth, post_searches_response))
+  if 'page_number' and 'page_chunk_number' in search_input_df.columns:
+    search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
   if 'page_number' and 'page_chunk_number' in search_input_df.columns:
     search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
   search_input_df.reset_index(drop=True, inplace=True)
@@ -339,6 +356,7 @@ def get_full_text(docs, doc_selection, cache_id):
 def get_summarization_output(full_text, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
+  llm = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   llm = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
   summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
