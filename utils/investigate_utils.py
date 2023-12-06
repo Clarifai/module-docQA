@@ -21,6 +21,10 @@ from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import Clarifai as ClarifaiDB
 from langchain.vectorstores import FAISS
+from typing import Any, Iterable, List, Optional, Tuple
+from langchain_core.documents import Document
+from concurrent.futures import ThreadPoolExecutor
+
 
 USER_ID = "openai"
 APP_ID = "chat-completion"
@@ -125,6 +129,107 @@ def process_post_searches_response(auth, post_searches_response):
 
   return input_dict_list
 
+def d_similarity_search_with_score(
+  _number_of_docs: int,
+  _user_id: str,
+  _app_id: str,
+  _pat: str,
+  query: str,
+  k: int = 4,
+  filter: Optional[dict] = None,
+  **kwargs: Any,
+) -> List[Tuple[Document, float]]:
+  """Run similarity search with score using Clarifai.
+
+  Args:
+      query (str): Query text to search for.
+      k (int): Number of results to return. Defaults to 4.
+      filter (Optional[Dict[str, str]]): Filter by metadata.
+      Defaults to None.
+
+  Returns:
+      List[Document]: List of documents most similar to the query text.
+  """
+  try:
+      from clarifai_grpc.grpc.api import resources_pb2, service_pb2
+      from clarifai_grpc.grpc.api.status import status_code_pb2
+      from google.protobuf import json_format  # type: ignore
+  except ImportError as e:
+      raise ImportError(
+          "Could not import clarifai python package. "
+          "Please install it with `pip install clarifai`."
+      ) from e
+
+  # Get number of docs to return
+  if _number_of_docs is not None:
+      k = _number_of_docs
+
+  auth = ClarifaiAuthHelper.from_streamlit(st)
+  stub = create_stub(auth)
+  userDataObject = auth.get_user_app_id_proto()
+
+  req = service_pb2.PostInputsSearchesRequest(
+        user_app_id=userDataObject,
+        searches=[
+            resources_pb2.Search(
+                query=resources_pb2.Query(
+                    ranks=[
+                        resources_pb2.Rank(
+                            annotation=resources_pb2.Annotation(
+                                data=resources_pb2.Data(
+                                    text=resources_pb2.Text(raw=query),
+                                )
+                            )
+                        )
+                    ]
+                )
+            )
+        ],
+        pagination=service_pb2.Pagination(page=1, per_page=k),
+    )
+
+    # Add filter by metadata if provided.
+  if filter is not None:
+      search_metadata = Struct()
+      search_metadata.update(filter)
+      f = req.searches[0].query.filters.add()
+      f.annotation.data.metadata.update(search_metadata)
+
+  post_annotations_searches_response = stub.PostInputsSearches(req)
+
+  # Check if search was successful
+  if post_annotations_searches_response.status.code != status_code_pb2.SUCCESS:
+      raise Exception(
+          "Post searches failed, status: "
+          + post_annotations_searches_response.status.description
+      )
+
+  # Retrieve hits
+  hits = post_annotations_searches_response.hits
+
+  executor = ThreadPoolExecutor(max_workers=10)
+
+  def hit_to_document(hit: resources_pb2.Hit) -> Tuple[Document, float]:
+      metadata = json_format.MessageToDict(hit.input.data.metadata)
+      h = {"Authorization": f"Key {_pat}"}
+      request = requests.get(hit.input.data.text.url, headers=h)
+
+      # override encoding by real educated guess as provided by chardet
+      request.encoding = request.apparent_encoding
+      requested_text = request.text
+
+      # logger.debug(
+      #     f"\tScore {hit.score:.2f} for annotation: {hit.annotation.id}\
+      #     off input: {hit.input.id}, text: {requested_text[:125]}"
+      # )
+      return (Document(page_content=requested_text, metadata=metadata), hit.score)
+
+  # Iterate over hits and retrieve metadata and text
+  futures = [executor.submit(hit_to_document, hit) for hit in hits]
+  docs_and_scores = [future.result() for future in futures]
+
+  return [doc for doc, _ in docs_and_scores]
+
 
 @st.cache_data(persist=True)
 def get_clarifai_docsearch(user_input, number_of_docs, cache_id):
@@ -132,16 +237,31 @@ def get_clarifai_docsearch(user_input, number_of_docs, cache_id):
   stub = create_stub(auth)
   userDataObject = auth.get_user_app_id_proto()
 
-  docsearch = ClarifaiDB(
-      user_id=userDataObject.user_id,
-      app_id=userDataObject.app_id,
-      pat=auth._pat,
-      number_of_docs=number_of_docs*2)
+  docs = d_similarity_search_with_score(
+      _user_id=userDataObject.user_id,
+      _app_id=userDataObject.app_id,
+      _pat=auth._pat,
+      _number_of_docs=number_of_docs,
+      query=user_input)
 
   print("Searching for: %s" % user_input)
-  docs = docsearch.similarity_search(user_input)
-  docs = get_unique_docs(docs)
+  # docs = docsearch.similarity_search(user_input)
+  # docs = get_unique_docs(docs)
   return docs
+  
+
+def get_unique_docs(docs):
+  unq_docs_meta = []
+  unq_docs = []
+
+  for doc in docs:
+    if doc.metadata in unq_docs_meta:
+      continue
+    else:
+      unq_docs_meta.append(doc.metadata)
+      unq_docs.append(doc)
+
+  return unq_docs
   
 
 def get_unique_docs(docs):
@@ -212,11 +332,13 @@ def get_full_text(docs, doc_selection, cache_id):
   userDataObject = auth.get_user_app_id_proto()
   meta_source = docs[doc_selection].metadata["source"] if "source" in docs[doc_selection].metadata.keys() else ""
   print("Searching for: %s" % meta_source)
+  meta_source = docs[doc_selection].metadata["source"] if "source" in docs[doc_selection].metadata.keys() else ""
+  print("Searching for: %s" % meta_source)
   post_searches_response = search_with_metadata(
       stub,
       userDataObject,
       search_metadata_key="source",
-      search_metadata_value=meta_source,
+      search_metadata_value=meta_source
   )
   search_input_df = pd.DataFrame(process_post_searches_response(auth, post_searches_response))
   if 'page_number' and 'page_chunk_number' in search_input_df.columns:
