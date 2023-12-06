@@ -15,7 +15,7 @@ from langchain.chains import AnalyzeDocumentChain, ConversationalRetrievalChain
 from langchain.chains import LLMChain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings import ClarifaiEmbeddings
-from langchain.llms import Clarifai
+from langchain.llms import Clarifai as ClarifaiLLMs
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
@@ -147,7 +147,7 @@ def get_clarifai_docsearch(user_input, number_of_docs, cache_id):
 def load_custom_llm_chain(prompt_template):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
-  llm_chatgpt = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
+  llm_chatgpt = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   prompt = PromptTemplate(template=prompt_template, input_variables=["page_content"])
   llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
   return llm_chain
@@ -180,7 +180,7 @@ def create_retrieval_qa_chat_chain(split_texts, cache_id):
 
   memory = ConversationBufferMemory(memory_key="chat_history", return_messages=False)
   retrieval_qa_chat_chain = ConversationalRetrievalChain.from_llm(
-      Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID),
+      ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID),
       vectorstore.as_retriever(search_kwargs={'k': 3}),
       memory=memory,
       chain_type="stuff",
@@ -195,15 +195,17 @@ def get_full_text(docs, doc_selection, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   stub = create_stub(auth)
   userDataObject = auth.get_user_app_id_proto()
-  print("Searching for: %s" % docs[doc_selection].metadata["source"])
+  meta_source = docs[doc_selection].metadata["source"] if "source" in docs[doc_selection].metadata.keys() else ""
+  print("Searching for: %s" % meta_source)
   post_searches_response = search_with_metadata(
       stub,
       userDataObject,
       search_metadata_key="source",
-      search_metadata_value=docs[doc_selection].metadata["source"],
+      search_metadata_value=meta_source,
   )
   search_input_df = pd.DataFrame(process_post_searches_response(auth, post_searches_response))
-  search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
+  if 'page_number' and 'page_chunk_number' in search_input_df.columns:
+    search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
   search_input_df.reset_index(drop=True, inplace=True)
   # st.session_state.search_input_df = search_input_df
   full_text = "\n".join(search_input_df.text.to_list())
@@ -215,7 +217,7 @@ def get_full_text(docs, doc_selection, cache_id):
 def get_summarization_output(full_text, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
-  llm = Clarifai(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
+  llm = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
   summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
   text_summary = summarize_document_chain.run(full_text)
@@ -259,7 +261,7 @@ def process_input(_llm_chain, input):
   if entities == {}:
     return entities
   else:
-    entities["SOURCES"] = [input["source"]]
+    entities["SOURCES"] = [input["source"]] if 'source' in input.keys() else {}
   return entities
 
 

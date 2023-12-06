@@ -64,7 +64,7 @@ if user_input:
   if docs != []:
     input_list = [{
         "page_content": doc.page_content,
-        "source": doc.metadata["source"]
+        "source": doc.metadata["source"] if "source" in doc.metadata else "",
     } for doc in docs]
 
     llm_chain = load_custom_llm_chain(prompt_template=NER_PROMPT)
@@ -99,7 +99,8 @@ if user_input:
     highlighted_text_list = []
     if doc_selection and doc_selection != "-":
       doc_selection = int(doc_selection) - 1
-      st.markdown(f"### {docs[doc_selection].metadata['source']}")
+      if "source" in docs[doc_selection].metadata:
+        st.markdown(f"### {docs[doc_selection].metadata['source']}")
 
       if st.button("Summarize"):
         full_text, search_input_df = get_full_text(docs, doc_selection, cache_id)
