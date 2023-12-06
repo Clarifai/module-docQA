@@ -53,7 +53,6 @@ def post_texts_with_geo(
 
 
 def post_texts(st, stub, userDataObject, text_list, metadata_list, auth):
-def post_texts(st, stub, userDataObject, text_list, metadata_list, auth):
     assert len(text_list) == len(metadata_list)
     batch_size = 32
     for chunking_idx in stqdm(
