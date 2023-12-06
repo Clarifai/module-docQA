@@ -1,4 +1,4 @@
-clarifai==9.10.4
+clarifai==9.10.1
 faiss-cpu==1.7.3
 geopy==2.3.0
 langchain==0.0.346

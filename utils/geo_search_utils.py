@@ -123,6 +123,8 @@ def llm_output_to_json(llm_output: str) -> Dict:
     llm_output = llm_output.strip()
     if "output" in llm_output[:20].lower():
       llm_output = llm_output.split("Output:")[1].strip()
+    if "json" in llm_output:
+      llm_output = llm_output.split("json")[1].strip().split('`',1)[0]
     try:
       entity_dict = json.loads(llm_output)
     except Exception as e:
