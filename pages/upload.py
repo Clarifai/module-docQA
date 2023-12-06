@@ -2,7 +2,7 @@
 import pandas as pd
 import PyPDF2
 import streamlit as st
-from clarifai.auth.helper import ClarifaiAuthHelper
+from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from clarifai.modules.css import ClarifaiStreamlitCSS
 
@@ -82,6 +82,6 @@ if uploaded_file:
   st.dataframe(metadata_sorted_df)
   
   #post_texts used to upload input in the app along with metadata and ids
-  post_texts(st, stub, userDataObject, text_chunks, metadata_list)
+  post_texts(st, stub, userDataObject, text_chunks, metadata_list, auth)
   st.success("Done!")
   st.balloons()

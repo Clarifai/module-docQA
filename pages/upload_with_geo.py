@@ -3,7 +3,7 @@
 import pandas as pd
 import PyPDF2
 import streamlit as st
-from clarifai.auth.helper import ClarifaiAuthHelper
+from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from geopy.geocoders import Nominatim
@@ -123,6 +123,6 @@ if uploaded_file:
         geo_points_list.append(geo_points)
 
   #post_texts_with_geo used to upload input in the app along with metadata and ids.
-  post_texts_with_geo(st, stub, userDataObject, text_chunks, metadata_list, geo_points_list)
+  post_texts_with_geo(st, stub, userDataObject, text_chunks, metadata_list, geo_points_list, auth)
   st.success("Done!")
   st.balloons()
