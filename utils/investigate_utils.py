@@ -16,7 +16,6 @@ from langchain.chains import LLMChain
 from langchain.chains.summarize import load_summarize_chain
 from langchain.embeddings import ClarifaiEmbeddings
 from langchain.llms import Clarifai as ClarifaiLLMs
-from langchain.llms import Clarifai as ClarifaiLLMs
 from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
@@ -284,7 +283,6 @@ def load_custom_llm_chain(prompt_template):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
   llm_chatgpt = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
-  llm_chatgpt = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   prompt = PromptTemplate(template=prompt_template, input_variables=["page_content"])
   llm_chain = LLMChain(prompt=prompt, llm=llm_chatgpt)
   return llm_chain
@@ -334,6 +332,8 @@ def get_full_text(docs, doc_selection, cache_id):
   userDataObject = auth.get_user_app_id_proto()
   meta_source = docs[doc_selection].metadata["source"] if "source" in docs[doc_selection].metadata.keys() else ""
   print("Searching for: %s" % meta_source)
+  meta_source = docs[doc_selection].metadata["source"] if "source" in docs[doc_selection].metadata.keys() else ""
+  print("Searching for: %s" % meta_source)
   post_searches_response = search_with_metadata(
       stub,
       userDataObject,
@@ -341,8 +341,6 @@ def get_full_text(docs, doc_selection, cache_id):
       search_metadata_value=meta_source
   )
   search_input_df = pd.DataFrame(process_post_searches_response(auth, post_searches_response))
-  if 'page_number' and 'page_chunk_number' in search_input_df.columns:
-    search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
   if 'page_number' and 'page_chunk_number' in search_input_df.columns:
     search_input_df = search_input_df.sort_values(["page_number", "page_chunk_number"])
   search_input_df.reset_index(drop=True, inplace=True)
@@ -356,7 +354,6 @@ def get_full_text(docs, doc_selection, cache_id):
 def get_summarization_output(full_text, cache_id):
   auth = ClarifaiAuthHelper.from_streamlit(st)
   pat = auth._pat
-  llm = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   llm = ClarifaiLLMs(pat=pat, user_id=USER_ID, app_id=APP_ID, model_id=MODEL_ID)
   summary_chain = load_summarize_chain(llm, chain_type="map_reduce")
   summarize_document_chain = AnalyzeDocumentChain(combine_docs_chain=summary_chain)
