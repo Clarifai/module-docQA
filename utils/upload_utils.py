@@ -22,9 +22,6 @@ def post_texts_with_geo(
         geo_points_batch = geo_points_list[chunking_idx : chunking_idx + batch_size]
 
         inputs = []
-        # input_obj = Inputs(logger_level="ERROR",
-        #                    user_id=userDataObject.user_id,
-        #                    app_id = userDataObject.app_id)
         
         for idx, text in enumerate(text_batch):
             id = uuid.uuid4().hex
@@ -55,6 +52,7 @@ def post_texts_with_geo(
     #return input_protos
 
 
+def post_texts(st, stub, userDataObject, text_list, metadata_list, auth):
 def post_texts(st, stub, userDataObject, text_list, metadata_list, auth):
     assert len(text_list) == len(metadata_list)
     batch_size = 32
