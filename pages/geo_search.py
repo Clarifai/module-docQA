@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from clarifai.auth.helper import ClarifaiAuthHelper
+from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from clarifai.modules.css import ClarifaiStreamlitCSS
 from langchain import LLMChain, PromptTemplate

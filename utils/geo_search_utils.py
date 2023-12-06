@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import geopy
 import requests
 import streamlit as st
-from clarifai.auth.helper import ClarifaiAuthHelper
+from clarifai.client.auth.helper import ClarifaiAuthHelper
 ## Import in the Clarifai gRPC based objects needed
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2

@@ -6,7 +6,7 @@ import requests
 import streamlit as st
 from google.protobuf.struct_pb2 import Struct
 
-from clarifai.auth.helper import ClarifaiAuthHelper
+from clarifai.client.auth.helper import ClarifaiAuthHelper
 from clarifai.client import create_stub
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2
 from clarifai_grpc.grpc.api.status import status_code_pb2
