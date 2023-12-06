@@ -136,11 +136,26 @@ def get_clarifai_docsearch(user_input, number_of_docs, cache_id):
       user_id=userDataObject.user_id,
       app_id=userDataObject.app_id,
       pat=auth._pat,
-      number_of_docs=number_of_docs)
+      number_of_docs=number_of_docs*2)
 
   print("Searching for: %s" % user_input)
   docs = docsearch.similarity_search(user_input)
+  docs = get_unique_docs(docs)
   return docs
+  
+
+def get_unique_docs(docs):
+  unq_docs_meta = []
+  unq_docs = []
+
+  for doc in docs:
+    if doc.metadata in unq_docs_meta:
+      continue
+    else:
+      unq_docs_meta.append(doc.metadata)
+      unq_docs.append(doc)
+
+  return unq_docs
 
 
 # Function to load custom llm chain
