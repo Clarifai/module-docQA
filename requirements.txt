@@ -11,4 +11,4 @@ stqdm==0.0.5
 streamlit-chat==0.1.1
 streamlit==1.29.0
 tiktoken==0.3.0
-transformers==4.30.2
+transformers==4.36.0
